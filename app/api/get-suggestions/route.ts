@@ -66,8 +66,25 @@ async function getGeminiSuggestions(description: string, primaryKeyword: string,
 
       Respond with ONLY this JSON structure (no markdown, no explanations, just pure JSON):
       {
-        "headlines": ["${primaryKeyword}: headline1", "${primaryKeyword}: headline2", "${primaryKeyword}: headline3", "${primaryKeyword}: headline4", "${primaryKeyword}: headline5"],
-        "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7", "keyword8", "keyword9", "keyword10"]
+        "headlines": [
+          "${primaryKeyword}: headline1 based on ${description}",
+          "${primaryKeyword}: headline2 inspired by ${description}",
+          "${primaryKeyword}: headline3 related to ${description}",
+          "${primaryKeyword}: headline4 reflecting ${description}",
+          "${primaryKeyword}: headline5 focusing on ${description}"
+        ],
+        "keywords": [
+          "keyword1 from ${description}",
+          "keyword2 inspired by ${description}",
+          "keyword3 based on ${description}",
+          "keyword4 reflecting ${description}",
+          "keyword5 related to ${description}",
+          "keyword6 focusing on ${description}",
+          "keyword7 mentioned in ${description}",
+          "keyword8 connected to ${description}",
+          "keyword9 described in ${description}",
+          "keyword10 according to ${description}"
+        ]
       }
     `;
 
@@ -78,13 +95,9 @@ async function getGeminiSuggestions(description: string, primaryKeyword: string,
       },
       body: JSON.stringify({
         contents: [{
-          parts: [{
-            text: prompt
-          }]
+          parts: [{ text: prompt }]
         }],
-        tools: [{
-          google_search: {}
-        }],
+        tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -94,93 +107,56 @@ async function getGeminiSuggestions(description: string, primaryKeyword: string,
       })
     });
 
+    // Log the raw response to help with debugging
+    const responseBody = await response.json();
+    console.log('Gemini API Response:', responseBody);
+
     if (!response.ok) {
       throw new Error(`Gemini API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const text = data.candidates[0]?.content?.parts[0]?.text;
-    
-    console.log('Gemini API raw text response:', text);
-    
+    // Extract content from the response (this part handles the Markdown)
+    const text = responseBody.candidates[0]?.content?.parts[0]?.text;
+
     if (!text) {
       throw new Error('No content generated');
     }
 
-    // Multiple strategies to extract JSON from response
+    // Remove the markdown code block markers and parse the JSON
+    const jsonString = text.replace(/^```json\s*|\s*```$/g, '').trim();
+
     let parsed;
-    
     try {
-      // Strategy 1: Try direct JSON parsing first
-      parsed = JSON.parse(text.trim());
-    } catch {
-      try {
-        // Strategy 2: Extract from markdown code block
-        const markdownMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        if (markdownMatch) {
-          parsed = JSON.parse(markdownMatch[1].trim());
-        } else {
-          // Strategy 3: Find JSON object in text
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[0]);
-          } else {
-            // Strategy 4: Try to extract structured data manually if conversational
-            console.warn('Gemini returned conversational response instead of JSON:', text);
-            
-            // Look for headlines and keywords in conversational text
-            const headlineMatches = text.match(/headlines?[:\s]*[\s\S]*?(?=keyword|$)/i);
-            const keywordMatches = text.match(/keywords?[:\s]*[\s\S]*/i);
-            
-            // Create a basic structure if we can extract some info
-            parsed = {
-              headlines: [
-                `${primaryKeyword}: Essential Things to Know Before You Buy`,
-                `${primaryKeyword}: Smart Buyer's Guide and Expert Tips`, 
-                `${primaryKeyword}: Why It's Perfect for Budget-Conscious Buyers`,
-                `${primaryKeyword}: Complete Analysis and Comparison Guide`,
-                `${primaryKeyword}: Hidden Secrets Every Buyer Should Know`
-              ],
-              keywords: [
-                `${primaryKeyword} price`,
-                `${primaryKeyword} dealers`,
-                `buy ${primaryKeyword}`,
-                `${primaryKeyword} for sale`,
-                `${primaryKeyword} buying guide`,
-                `${primaryKeyword} inspection tips`,
-                `${primaryKeyword} reviews`,
-                `${primaryKeyword} maintenance`,
-                `${primaryKeyword} benefits`,
-                `${primaryKeyword} comparison`
-              ]
-            };
-          }
-        }
-      } catch (parseError) {
-        console.error('Failed to parse JSON from Gemini response:', parseError);
-        throw new Error('Could not parse JSON from response');
-      }
+      parsed = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
+      return mockGeminiSuggestions(description, primaryKeyword, relevantKeywords);
     }
-    
-    // Validate the structure
+
     if (!parsed.headlines || !Array.isArray(parsed.headlines) || 
         !parsed.keywords || !Array.isArray(parsed.keywords)) {
       throw new Error('Invalid JSON structure in response');
     }
-    
-    return parsed;
 
+    return parsed;
+    
   } catch (error) {
     console.error('Gemini API error:', error);
-    // Fallback to mock data if API fails
     return mockGeminiSuggestions(description, primaryKeyword, relevantKeywords);
   }
+}
+
+async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: string) {
+  // This function will refine existing headlines based on a new keyword
+  return headlines.map((headline) => {
+    return `${newKeyword}: ${headline.split(":")[1].trim()}`;
+  });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { description, primaryKeyword, relevantKeywords } = body;
+    const { description, primaryKeyword, relevantKeywords, newKeyword } = body;
 
     // Validate input
     if (!description || !primaryKeyword || !relevantKeywords) {
@@ -190,9 +166,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Step 1: Get initial suggestions
     const suggestions = await getGeminiSuggestions(description, primaryKeyword, relevantKeywords);
 
-    return NextResponse.json(suggestions);
+    // Step 2: Refine headlines with new keyword if provided
+    let refinedHeadlines = suggestions.headlines;
+
+    if (newKeyword) {
+      refinedHeadlines = await refineHeadlinesWithNewKeyword(suggestions.headlines, newKeyword);
+    }
+
+    // Return refined suggestions
+    return NextResponse.json({
+      headlines: refinedHeadlines,
+      keywords: suggestions.keywords
+    });
 
   } catch (error) {
     console.error('API error:', error);
@@ -202,3 +190,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+

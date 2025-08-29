@@ -22,15 +22,89 @@ async function parseImageTextWithGemini(base64Image: string, mimeType: string) {
 
   try {
     const prompt = `
-      Analyze this image and extract all visible text content. Focus on:
-      1. Any headlines, titles, or main text
-      2. Product descriptions or marketing copy
-      3. Brand names or company information
-      4. Key messages or value propositions
-      
-      Provide a comprehensive description of the creative content shown in the image that would be suitable for generating SEO-optimized articles. Focus on the business vertical, products/services, and key messaging.
-      
-      Return only the extracted and interpreted text content without any additional formatting or explanations.
+     Analyze this marketing creative image comprehensively to extract information for SEO article generation. Follow this structured approach:
+
+## STEP 1: TEXT EXTRACTION
+Extract ALL visible text including:
+- Headlines and subheadlines
+- Call-to-action phrases
+- Product/service categories
+- Price indicators or promotional offers
+- Time periods, dates, or ranges
+- Warning messages or urgency indicators
+- Button text and navigation elements
+- Fine print or disclaimers
+
+## STEP 2: VISUAL CONTEXT ANALYSIS
+Identify and describe:
+- Primary product or service shown (e.g., cars, real estate, electronics)
+- Product variations or categories (e.g., different car models, year ranges)
+- Visual hierarchy - what draws attention first
+- Color psychology and emotional tone
+- Target audience indicators
+
+## STEP 3: MARKETING INTENT IDENTIFICATION
+Determine:
+- Primary value proposition (what problem does this solve?)
+- Sales approach (urgency, scarcity, benefit-focused, problem-agitation)
+- Customer pain points being addressed
+- Unique selling points highlighted
+- Pricing strategy or payment options mentioned
+
+## STEP 4: CONTENT SEGMENTATION
+If the creative shows multiple segments (like year ranges, product categories):
+- List each segment separately
+- Identify what differentiates each segment
+- Note any progression or hierarchy between segments
+- Capture segment-specific benefits or features
+
+## STEP 5: SEO ARTICLE FRAMEWORK
+Based on the above analysis, provide:
+
+1. **Primary Topic**: The main subject for the article
+2. **Target Audience**: Who would search for this content
+3. **Key Sections**: Natural article sections based on the creative's structure
+4. **Search Intent Keywords**: What people would search to find this
+5. **Emotional Hooks**: Phrases that create urgency or interest
+6. **Content Angles**: Different perspectives to cover in the article
+
+## OUTPUT FORMAT:
+Structure your response as follows:
+
+**EXTRACTED TEXT:**
+[List all text elements found]
+
+**BUSINESS VERTICAL:**
+[Identify the industry/niche]
+
+**PRODUCT/SERVICE DETAILS:**
+[Specific offerings shown]
+
+**MARKETING HOOKS:**
+- [Hook 1]
+- [Hook 2]
+- [etc.]
+
+**SUGGESTED ARTICLE STRUCTURE:**
+- Section 1: [Based on creative segment 1]
+- Section 2: [Based on creative segment 2]
+- Section 3: [Based on creative segment 3]
+- Additional sections as needed
+
+**KEY THEMES TO COVER:**
+- [Theme 1]
+- [Theme 2]
+- [Theme 3]
+
+**TARGET KEYWORDS:**
+- Primary: [Main keyword]
+- Secondary: [Supporting keywords]
+- Long-tail: [Specific search phrases]
+
+**CONTENT TONE:**
+[Describe the appropriate tone based on the creative's messaging]
+
+Remember: The goal is to extract enough context to write a comprehensive, SEO-optimized article that matches the creative's intent and covers all aspects shown in the image.
     `;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
@@ -90,7 +164,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { base64Image, mimeType } = body;
 
-    // Validate input
     if (!base64Image || !mimeType) {
       return NextResponse.json(
         { error: 'Missing base64Image or mimeType' },
@@ -98,7 +171,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate image type
     if (!mimeType.startsWith('image/')) {
       return NextResponse.json(
         { error: 'Invalid file type. Please upload an image.' },
