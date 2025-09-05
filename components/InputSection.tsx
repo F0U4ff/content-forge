@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, RotateCcw, Upload, Image, Loader2 } from 'lucide-react';
+import { Sparkles, RotateCcw, Upload, Loader2 } from 'lucide-react';
 import { AppState } from '@/types/app';
 
 interface InputSectionProps {
@@ -9,7 +9,6 @@ interface InputSectionProps {
   updateState: (updates: Partial<AppState>) => void;
   onGetSuggestions: () => void;
   onClearInput: () => void;
-  onImageUpload: (file: File) => void;
   onImageUpload: (file: File) => void;
 }
 
