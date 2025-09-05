@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sparkles, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import InputSection from '@/components/InputSection';
 import SuggestionsSection from '@/components/SuggestionsSection';
@@ -23,29 +23,32 @@ const initialState: AppState = {
   articleHistory: []
 };
 
+const resetInputAndSuggestionState = {
+  description: '',
+  primaryKeyword: '',
+  relevantKeywords: [],
+  suggestedHeadlines: [],
+  suggestedKeywords: [],
+  selectedHeadline: '',
+  selectedKeywords: [],
+  isLoadingSuggestions: false,
+  isGeneratingArticle: false,
+  isParsingImage: false,
+  showSuggestions: false,
+  article: null
+};
+
 export default function Home() {
   const [state, setState] = useState<AppState>(initialState);
 
-  // Reset state for input fields and suggestions
-  const resetInputAndSuggestionState = {
-    description: '',
-    primaryKeyword: '',
-    relevantKeywords: [],
-    suggestedHeadlines: [],
-    suggestedKeywords: [],
-    selectedHeadline: '',
-    selectedKeywords: [],
-    isLoadingSuggestions: false,
-    isGeneratingArticle: false,
-    isParsingImage: false,
-    showSuggestions: false,
-    article: null
-  };
+  const updateState = useCallback((updates: Partial<AppState>) => {
+    setState(prevState => ({ ...prevState, ...updates }));
+  }, []);
 
-  const resetAllInputRelatedState = () => {
+  const resetAllInputRelatedState = useCallback(() => {
     updateState(resetInputAndSuggestionState);
     localStorage.removeItem('contentforge-state');
-  };
+  }, [updateState]);
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -79,11 +82,7 @@ export default function Home() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
-
-  const updateState = (updates: Partial<AppState>) => {
-    setState(prevState => ({ ...prevState, ...updates }));
-  };
+  }, [resetAllInputRelatedState]);
 
   const handleGetSuggestions = async () => {
     updateState({ isLoadingSuggestions: true, showSuggestions: false });
