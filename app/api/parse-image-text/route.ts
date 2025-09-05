@@ -1,5 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface ParsedCreativeData {
+  description: string;
+  extractedText: string[];
+  businessVertical: string;
+  productDetails: string;
+  marketingHooks: string[];
+  suggestedStructure: Array<{
+    title: string;
+    content: string;
+  }>;
+  keyThemes: string[];
+  targetKeywords: {
+    primary: string;
+    secondary: string[];
+    longTail: string[];
+  };
+  contentTone: string;
+  emotionalTriggers: string[];
+  targetAudience: string;
+  uniqueSellingPoints: string[];
+}
+
 export const dynamic = 'force-dynamic';
 
 // Mock image text extraction for development
@@ -8,13 +30,80 @@ async function mockParseImageText(base64Image: string, mimeType: string) {
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   return {
-    extractedText: "Professional marketing campaign for premium automotive services featuring luxury vehicle maintenance and repair solutions. High-quality service center specializing in European car brands with certified technicians and state-of-the-art diagnostic equipment."
+    description: "Used car dealership offering flexible payment options with inventory from 2014-2024",
+    extractedText: [
+      "buy car now pay later",
+      "2014-2018 see price",
+      "2019-2021 see price",
+      "2022-2024 see price"
+    ],
+    businessVertical: "Automotive / Used Car Sales",
+    productDetails: "Used vehicles segmented by year ranges with deferred payment options",
+    marketingHooks: [
+      "Immediate ownership without upfront payment",
+      "Wide selection across 10 years of models",
+      "Transparent pricing for all budgets"
+    ],
+    suggestedStructure: [
+      {
+        title: "Understanding Buy Now Pay Later Car Financing",
+        content: "How deferred payment plans work, eligibility, pros and cons"
+      },
+      {
+        title: "Best Value: 2014-2018 Used Cars",
+        content: "Affordable older models with proven reliability"
+      },
+      {
+        title: "Nearly New: 2019-2021 Models",
+        content: "Low mileage options with modern features"
+      },
+      {
+        title: "Latest Models: 2022-2024 Vehicles",
+        content: "Current generation with warranties available"
+      }
+    ],
+    keyThemes: [
+      "Flexible financing options",
+      "Vehicle depreciation curves",
+      "Age-based value propositions"
+    ],
+    targetKeywords: {
+      primary: "buy car now pay later",
+      secondary: ["used car financing", "zero down payment", "deferred payment"],
+      longTail: ["buy used car no money down bad credit", "2019-2021 cars with payment plans"]
+    },
+    contentTone: "Helpful and informative while addressing financial concerns",
+    emotionalTriggers: ["financial freedom", "immediate gratification", "smart shopping"],
+    targetAudience: "Budget-conscious car buyers with limited upfront capital",
+    uniqueSellingPoints: ["No down payment required", "Multiple year ranges", "Flexible terms"]
   };
+}
+
+function generateDescriptionFromParsedData(data: ParsedCreativeData): string {
+  let description = `${data.businessVertical} offering ${data.productDetails}. `;
+
+  if (data.marketingHooks.length > 0) {
+    description += `Key value propositions include ${data.marketingHooks.slice(0, 2).join(' and ')}. `;
+  }
+
+  if (data.targetAudience) {
+    description += `Targeting ${data.targetAudience}. `;
+  }
+
+  if (data.keyThemes.length > 0) {
+    description += `The content should cover ${data.keyThemes.join(', ')}. `;
+  }
+
+  if (data.emotionalTriggers.length > 0) {
+    description += `Appeal to ${data.emotionalTriggers.join(' and ')} to engage readers.`;
+  }
+
+  return description.trim();
 }
 
 async function parseImageTextWithGemini(base64Image: string, mimeType: string) {
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey) {
     console.log('No Gemini API key found, using mock data');
     return mockParseImageText(base64Image, mimeType);
@@ -105,6 +194,30 @@ Structure your response as follows:
 [Describe the appropriate tone based on the creative's messaging]
 
 Remember: The goal is to extract enough context to write a comprehensive, SEO-optimized article that matches the creative's intent and covers all aspects shown in the image.
+
+CRITICAL: Return your analysis as valid JSON matching this exact structure:
+{
+  "extractedText": ["text1", "text2"],
+  "businessVertical": "industry/niche",
+  "productDetails": "specific offerings",
+  "marketingHooks": ["hook1", "hook2"],
+  "suggestedStructure": [
+    {"title": "Section 1", "content": "description"},
+    {"title": "Section 2", "content": "description"}
+  ],
+  "keyThemes": ["theme1", "theme2"],
+  "targetKeywords": {
+    "primary": "main keyword",
+    "secondary": ["keyword1", "keyword2"],
+    "longTail": ["long tail phrase 1", "long tail phrase 2"]
+  },
+  "contentTone": "tone description",
+  "emotionalTriggers": ["trigger1", "trigger2"],
+  "targetAudience": "audience description",
+  "uniqueSellingPoints": ["usp1", "usp2"]
+}
+
+IMPORTANT: Return ONLY valid JSON, no markdown formatting, no explanations.
     `;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
@@ -140,18 +253,42 @@ Remember: The goal is to extract enough context to write a comprehensive, SEO-op
     }
 
     const data = await response.json();
-    const extractedText = data.candidates[0]?.content?.parts[0]?.text;
-    
-    console.log('Gemini API image analysis response:', extractedText);
-    
-    if (!extractedText) {
-      throw new Error('No text extracted from image');
+    const responseText = data.candidates[0]?.content?.parts[0]?.text || '';
+
+    console.log('Gemini API image analysis response:', responseText);
+
+    try {
+      const jsonString = responseText.replace(/^```json\s*|\s*```$/g, '').trim();
+      const parsed: ParsedCreativeData = JSON.parse(jsonString);
+
+      const description = generateDescriptionFromParsedData(parsed);
+
+      return {
+        ...parsed,
+        description
+      };
+    } catch (parseError) {
+      console.error('Failed to parse structured response, falling back to text extraction:', parseError);
+
+      return {
+        description: responseText,
+        extractedText: [responseText],
+        businessVertical: 'Unknown',
+        productDetails: '',
+        marketingHooks: [],
+        suggestedStructure: [],
+        keyThemes: [],
+        targetKeywords: {
+          primary: '',
+          secondary: [],
+          longTail: []
+        },
+        contentTone: '',
+        emotionalTriggers: [],
+        targetAudience: '',
+        uniqueSellingPoints: []
+      };
     }
-
-    return {
-      extractedText: extractedText.trim()
-    };
-
   } catch (error) {
     console.error('Gemini API error:', error);
     // Fallback to mock data if API fails
@@ -190,3 +327,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
