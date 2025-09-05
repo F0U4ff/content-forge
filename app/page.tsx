@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLatest } from '@/hooks/use-latest';
 import { Sparkles, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import InputSection from '@/components/InputSection';
 import SuggestionsSection from '@/components/SuggestionsSection';
@@ -25,6 +26,7 @@ const initialState: AppState = {
 
 export default function Home() {
   const [state, setState] = useState<AppState>(initialState);
+  const stateRef = useLatest(state);
 
   // Reset state for input fields and suggestions
   const resetInputAndSuggestionState = {
@@ -50,11 +52,11 @@ export default function Home() {
   // Auto-save to localStorage
   useEffect(() => {
     const interval = setInterval(() => {
-      localStorage.setItem('contentforge-state', JSON.stringify(state));
+      localStorage.setItem('contentforge-state', JSON.stringify(stateRef.current));
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [state]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function Home() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateState = (updates: Partial<AppState>) => {
     setState(prevState => ({ ...prevState, ...updates }));
@@ -269,7 +271,7 @@ export default function Home() {
               AI-Powered RSOC Content Page Creator
             </p>
             <p className="text-lg opacity-75 mt-2">
-              Create articles fully compliant with Google's policies in minutes
+              Create articles fully compliant with Google&apos;s policies in minutes
             </p>
           </div>
         </div>
