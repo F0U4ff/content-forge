@@ -1,58 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface CreativeContext {
+  marketingHooks?: string[];
+  suggestedStructure?: Array<{ title: string; content: string }>;
+  emotionalTriggers?: string[];
+  targetAudience?: string;
+  uniqueSellingPoints?: string[];
+  businessVertical?: string;
+  keyThemes?: string[];
+}
+
 export const dynamic = 'force-dynamic';
 
 // Mock Google Gemini API response for development
 // Replace with actual Gemini API integration when API key is available
-async function mockGeminiSuggestions(description: string, primaryKeyword: string, relevantKeywords: string[]) {
-  // Simulate API delay
+async function mockGeminiSuggestionsWithContext(
+  description: string,
+  primaryKeyword: string,
+  relevantKeywords: string[],
+  creativeContext?: CreativeContext
+) {
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  const headlines = [
-    `${primaryKeyword}: The Ultimate Guide to Getting the Best Deal`,
-    `${primaryKeyword}: Avoid These 5 Costly Mistakes Before You Buy`,
-    `${primaryKeyword}: Is It Right for Your Budget? Complete Analysis`,
-    `${primaryKeyword}: Expert Tips for Finding Hidden Gems`,
-    `${primaryKeyword}: Secrets to Negotiating the Perfect Price`
-  ];
+  let headlines = [];
 
-  const keywordSuggestions = [
-    ...relevantKeywords.slice(0, 8),
-    `${primaryKeyword} tips`,
-    `${primaryKeyword} best practices`,
-    `${primaryKeyword} strategy`,
-    `${primaryKeyword} guide`,
-    `${primaryKeyword} techniques`,
-    `${primaryKeyword} trends`,
-    `${primaryKeyword} benefits`
-  ].slice(0, 15);
+  if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
+    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook =>
+      `${primaryKeyword}: ${hook}`
+    );
+  } else {
+    headlines = [
+      `${primaryKeyword}: The Ultimate Guide to Getting the Best Deal`,
+      `${primaryKeyword}: Avoid These Costly Mistakes`,
+      `${primaryKeyword}: Expert Tips and Strategies`,
+      `${primaryKeyword}: Complete Buyer's Guide`,
+      `${primaryKeyword}: Everything You Need to Know`
+    ];
+  }
+
+  let keywords = [...relevantKeywords.slice(0, 8)];
+
+  if (creativeContext?.suggestedStructure) {
+    creativeContext.suggestedStructure.forEach(section => {
+      const sectionKeywords = section.title.toLowerCase().split(' ')
+        .filter(word => word.length > 3 && !['with', 'from', 'that', 'this'].includes(word));
+      keywords.push(...sectionKeywords);
+    });
+  }
+
+  if (creativeContext?.keyThemes) {
+    keywords.push(...creativeContext.keyThemes);
+  }
+
+  keywords = [...new Set(keywords)].slice(0, 15);
 
   return {
     headlines,
-    keywords: keywordSuggestions
+    keywords
   };
 }
 
-async function getGeminiSuggestions(description: string, primaryKeyword: string, relevantKeywords: string[]) {
+async function getGeminiSuggestionsWithContext(
+  description: string,
+  primaryKeyword: string,
+  relevantKeywords: string[],
+  creativeContext?: CreativeContext
+) {
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey) {
     console.log('No Gemini API key found, using mock data');
-    return mockGeminiSuggestions(description, primaryKeyword, relevantKeywords);
+    return mockGeminiSuggestionsWithContext(description, primaryKeyword, relevantKeywords, creativeContext);
   }
 
   try {
+    // Before building the prompt, add this context section:
+    let contextSection = '';
+    if (creativeContext) {
+      contextSection = `
+    CREATIVE CONTEXT FROM IMAGE ANALYSIS:
+    - Marketing Hooks: ${creativeContext.marketingHooks?.join(', ') || 'None identified'}
+    - Business Type: ${creativeContext.businessVertical || 'General'}
+    - Target Audience: ${creativeContext.targetAudience || 'General audience'}
+    - Emotional Triggers: ${creativeContext.emotionalTriggers?.join(', ') || 'None identified'}
+    - Unique Selling Points: ${creativeContext.uniqueSellingPoints?.join(', ') || 'None identified'}
+    - Key Themes: ${creativeContext.keyThemes?.join(', ') || 'None identified'}
+
+    SUGGESTED ARTICLE SECTIONS FROM CREATIVE:
+    ${creativeContext.suggestedStructure?.map(s => `- ${s.title}: ${s.content}`).join('\n') || 'No specific structure identified'}
+    `;
+    }
+
     const prompt = `
       CRITICAL: You must respond with ONLY valid JSON, no other text or explanations.
 
       Based on this content description: "${description}"
       Primary keyword: "${primaryKeyword}"
       Related keywords: ${relevantKeywords.join(', ')}
+      ${contextSection}
+
+      Generate 5 highly relevant, creative-specific headlines that:
+      1. ALL must start with exactly: "${primaryKeyword}:"
+      2. Directly reflect the content and themes from the creative
+      3. Match the emotional tone and marketing approach identified
+      4. Address the target audience's specific needs
+      5. Incorporate the unique selling points when relevant
+
+      ${creativeContext?.marketingHooks ? `
+      IMPORTANT: Base headlines on these specific marketing hooks from the creative:
+      ${creativeContext.marketingHooks.map((hook, i) => `${i + 1}. ${hook}`).join('\n')}
+      ` : ''}
+
+      ${creativeContext?.suggestedStructure ? `
+      IMPORTANT: Consider these content sections identified in the creative:
+      ${creativeContext.suggestedStructure.map(s => s.title).join(', ')}
+      ` : ''}
 
       Search the web for current trends and insights, then provide:
       1. Five compelling article headlines - CRITICAL: ALL headlines MUST start with the exact primary keyword "${primaryKeyword}"
          - One benefit-focused headline
-         - One problem-solving headline  
+         - One problem-solving headline
          - One curiosity-driven headline
          - One comparison/guide headline
          - One expert tips/secrets headline
@@ -130,7 +197,7 @@ async function getGeminiSuggestions(description: string, primaryKeyword: string,
       parsed = JSON.parse(jsonString);
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', parseError);
-      return mockGeminiSuggestions(description, primaryKeyword, relevantKeywords);
+      return mockGeminiSuggestionsWithContext(description, primaryKeyword, relevantKeywords, creativeContext);
     }
 
     if (!parsed.headlines || !Array.isArray(parsed.headlines) || 
@@ -142,7 +209,7 @@ async function getGeminiSuggestions(description: string, primaryKeyword: string,
     
   } catch (error) {
     console.error('Gemini API error:', error);
-    return mockGeminiSuggestions(description, primaryKeyword, relevantKeywords);
+    return mockGeminiSuggestionsWithContext(description, primaryKeyword, relevantKeywords, creativeContext);
   }
 }
 
@@ -156,7 +223,7 @@ async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: st
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { description, primaryKeyword, relevantKeywords, newKeyword } = body;
+    const { description, primaryKeyword, relevantKeywords, newKeyword, creativeContext } = body;
 
     // Validate input
     if (!description || !primaryKeyword || !relevantKeywords) {
@@ -167,7 +234,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 1: Get initial suggestions
-    const suggestions = await getGeminiSuggestions(description, primaryKeyword, relevantKeywords);
+    const suggestions = await getGeminiSuggestionsWithContext(
+      description,
+      primaryKeyword,
+      relevantKeywords,
+      creativeContext
+    );
 
     // Step 2: Refine headlines with new keyword if provided
     let refinedHeadlines = suggestions.headlines;
