@@ -41,7 +41,8 @@ export default function Home() {
     isGeneratingArticle: false,
     isParsingImage: false,
     showSuggestions: false,
-    article: null
+    article: null,
+    creativeContext: undefined
   };
 
   const resetAllInputRelatedState = () => {
@@ -98,7 +99,8 @@ export default function Home() {
         body: JSON.stringify({
           description: state.description,
           primaryKeyword: state.primaryKeyword,
-          relevantKeywords: state.relevantKeywords
+          relevantKeywords: state.relevantKeywords,
+          creativeContext: state.creativeContext // Add this line
         })
       });
 
@@ -198,12 +200,10 @@ export default function Home() {
     updateState({ isParsingImage: true });
 
     try {
-      // Convert file to base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
           const result = reader.result as string;
-          // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
           const base64Data = result.split(',')[1];
           resolve(base64Data);
         };
@@ -213,7 +213,6 @@ export default function Home() {
       reader.readAsDataURL(file);
       const base64Data = await base64Promise;
 
-      // Call API to parse image text
       const response = await fetch('/api/parse-image-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -227,17 +226,27 @@ export default function Home() {
         throw new Error('Failed to parse image text');
       }
 
-      const data = await response.json();
-      
-      // Update description with extracted text
+      const parsedData = await response.json();
+    
       updateState({
-        description: data.extractedText,
+        description: parsedData.description,
+        creativeContext: {
+          marketingHooks: parsedData.marketingHooks,
+          suggestedStructure: parsedData.suggestedStructure,
+          emotionalTriggers: parsedData.emotionalTriggers,
+          targetAudience: parsedData.targetAudience,
+          uniqueSellingPoints: parsedData.uniqueSellingPoints,
+          businessVertical: parsedData.businessVertical,
+          keyThemes: parsedData.keyThemes,
+          extractedKeywords: parsedData.targetKeywords
+        },
+        primaryKeyword: parsedData.targetKeywords?.primary || state.primaryKeyword,
+        relevantKeywords: parsedData.targetKeywords?.secondary || state.relevantKeywords,
         isParsingImage: false
       });
     } catch (error) {
       console.error('Error parsing image:', error);
       updateState({ isParsingImage: false });
-      // You might want to show an error message to the user here
     }
   };
 
