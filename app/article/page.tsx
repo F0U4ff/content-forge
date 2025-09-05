@@ -37,6 +37,7 @@ export default function ArticlePage() {
 
     // Listen for article data from parent window
     const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       if (event.data && event.data.article) {
         setArticle(event.data.article);
       }
