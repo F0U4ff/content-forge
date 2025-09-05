@@ -165,7 +165,21 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-async function generateWithGemini(description: string, primaryKeyword: string, selectedHeadline: string, selectedKeywords: string[]) {
+interface CreativeContext {
+  businessVertical?: string;
+  targetAudience?: string;
+  keyThemes?: string[];
+  emotionalTriggers?: string[];
+  suggestedStructure?: Array<{ title: string }>;
+}
+
+async function generateWithGemini(
+  description: string,
+  primaryKeyword: string,
+  selectedHeadline: string,
+  selectedKeywords: string[],
+  creativeContext?: CreativeContext
+) {
   const apiKey = process.env.GEMINI_API_KEY;
   
   if (!apiKey) {
@@ -188,7 +202,18 @@ async function generateWithGemini(description: string, primaryKeyword: string, s
       - Search the web for current statistics, trends, and insights related to "${primaryKeyword}"
       - Include recent data and examples from authoritative sources
       - Reference current industry best practices and emerging trends
-      
+
+      ${creativeContext ? `
+CREATIVE CONTEXT:
+- Business Type: ${creativeContext.businessVertical}
+- Target Audience: ${creativeContext.targetAudience}
+- Key Themes to Cover: ${creativeContext.keyThemes?.join(', ')}
+- Article should appeal to: ${creativeContext.emotionalTriggers?.join(' and ')}
+
+STRUCTURE GUIDANCE FROM CREATIVE:
+${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
+` : ''}
+
       SEO SPECIFICATIONS:
       - Include 3-4 H2 sections (## format)
       - Keyword density: 0.5-0.8% maximum
@@ -302,7 +327,7 @@ async function generateWithGemini(description: string, primaryKeyword: string, s
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { description, primaryKeyword, selectedHeadline, selectedKeywords } = body;
+    const { description, primaryKeyword, selectedHeadline, selectedKeywords, creativeContext } = body;
 
     // Validate input
     if (!description || !primaryKeyword || !selectedHeadline || !selectedKeywords?.length) {
@@ -319,8 +344,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
-    const article = await generateWithGemini(description, primaryKeyword, selectedHeadline, selectedKeywords);
+    const article = await generateWithGemini(description, primaryKeyword, selectedHeadline, selectedKeywords, creativeContext);
 
     return NextResponse.json({ article });
 
