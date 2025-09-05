@@ -268,9 +268,9 @@ export default function Home() {
             <p className="text-xl opacity-90">
               AI-Powered RSOC Content Page Creator
             </p>
-            <p className="text-lg opacity-75 mt-2">
-              Create articles fully compliant with Google's policies in minutes
-            </p>
+              <p className="text-lg opacity-75 mt-2">
+                Create articles fully compliant with Google&apos;s policies in minutes
+              </p>
           </div>
         </div>
       </header>

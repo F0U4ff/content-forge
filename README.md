@@ -1,6 +1,6 @@
 # ContentForge - Professional SEO Article Generation
 
-A sophisticated web application for generating SEO-optimized articles using Google Gemini AI with web grounding capabilities.
+A sophisticated Next.js 13.5 web application for generating SEO-optimized articles using Google Gemini AI with web grounding capabilities.
 
 ## Features
 
@@ -46,14 +46,14 @@ A sophisticated web application for generating SEO-optimized articles using Goog
 
 ## Technical Stack
 
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 13.5, TypeScript, Tailwind CSS
 - **AI**: Google Gemini 2.0 Flash with grounding
 - **State Management**: React hooks with localStorage persistence
-- **API**: Secure server-side integration with rate limiting
+- **API**: Secure server-side integration (rate limiting planned)
 
 ## Features
 
-- Rate limiting (20 articles/hour)
+- Rate limiting (planned feature, not yet implemented)
 - Auto-save functionality
 - Responsive design
 - Professional article formatting
