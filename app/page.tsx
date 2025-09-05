@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLatest } from '@/hooks/use-latest';
 import { Sparkles, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import InputSection from '@/components/InputSection';
 import SuggestionsSection from '@/components/SuggestionsSection';
@@ -25,6 +26,7 @@ const initialState: AppState = {
 
 export default function Home() {
   const [state, setState] = useState<AppState>(initialState);
+  const stateRef = useLatest(state);
 
   // Reset state for input fields and suggestions
   const resetInputAndSuggestionState = {
@@ -50,11 +52,11 @@ export default function Home() {
   // Auto-save to localStorage
   useEffect(() => {
     const interval = setInterval(() => {
-      localStorage.setItem('contentforge-state', JSON.stringify(state));
+      localStorage.setItem('contentforge-state', JSON.stringify(stateRef.current));
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [state]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load from localStorage on mount
   useEffect(() => {
