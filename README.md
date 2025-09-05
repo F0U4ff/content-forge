@@ -7,8 +7,12 @@ A sophisticated Next.js 13.5 web application for generating SEO-optimized articl
 - **AI-Powered Content Generation**: Uses Google Gemini 2.0 Flash with web search grounding
 - **SEO Optimization**: Automatic keyword density control, heading structure, and readability optimization
 - **Interactive UI**: Smooth animations, keyword chip selection, and professional design
+- **Auto-save**: Automatically saves your progress locally
+- **Responsive Design**: Works across devices
+- **Professional Article Formatting**
 - **Article Analysis**: Word count, keyword density, reading time, and SEO scoring
 - **Export Options**: Copy, download, and print functionality
+- **Rate Limiting**: Planned feature, not yet implemented
 
 ## Setup Instructions
 
@@ -50,15 +54,6 @@ A sophisticated Next.js 13.5 web application for generating SEO-optimized articl
 - **AI**: Google Gemini 2.0 Flash with grounding
 - **State Management**: React hooks with localStorage persistence
 - **API**: Secure server-side integration (rate limiting planned)
-
-## Features
-
-- Rate limiting (planned feature, not yet implemented)
-- Auto-save functionality
-- Responsive design
-- Professional article formatting
-- SEO analysis and scoring
-- Export capabilities
 
 ## License
 
