@@ -72,6 +72,7 @@ export default function Home() {
   // Listen for reset messages from article page
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       if (event.data && event.data.type === 'resetInputState') {
         resetAllInputRelatedState();
       }
@@ -79,7 +80,7 @@ export default function Home() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateState = (updates: Partial<AppState>) => {
     setState(prevState => ({ ...prevState, ...updates }));
