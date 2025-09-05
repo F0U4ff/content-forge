@@ -25,6 +25,20 @@ export interface AppState {
   showSuggestions: boolean;
   article: Article | null;
   articleHistory: Article[];
+  creativeContext?: {
+    marketingHooks?: string[];
+    suggestedStructure?: Array<{ title: string; content: string }>;
+    emotionalTriggers?: string[];
+    targetAudience?: string;
+    uniqueSellingPoints?: string[];
+    businessVertical?: string;
+    keyThemes?: string[];
+    extractedKeywords?: {
+      primary: string;
+      secondary: string[];
+      longTail: string[];
+    };
+  };
 }
 
 export interface SuggestionResponse {
