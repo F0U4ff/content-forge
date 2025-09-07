@@ -284,6 +284,24 @@ CREATIVE CONTEXT:
 
 STRUCTURE GUIDANCE FROM CREATIVE:
 ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
+
+MANDATORY STRUCTURE:
+
+H2 SUBHEADING REQUIREMENTS:
+For each required section, create engaging H2 headings that:
+- Include the primary keyword naturally (in at least 2 headings)
+- Reflect the specific benefit or problem addressed in that section
+- Avoid generic phrases like 'Your Guide to' or 'Overview'
+- Use action words and specific outcomes
+
+Templates based on section type:
+- Year ranges: '[Primary Keyword] [Year]: [Specific Problem/Benefit]'
+- Product types: '[Primary Keyword] for [Type]: [Unique Value Proposition]'
+- Numbered items: '[Number]. [Specific Action/Check] for [Primary Keyword]'
+
+Example transformations:
+BAD: 'Hatchbacks: Your Guide to Affordable Cars'
+GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
 ` : ''}
 
       SEO SPECIFICATIONS:
