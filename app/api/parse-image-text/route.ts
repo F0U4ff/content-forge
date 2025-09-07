@@ -111,7 +111,16 @@ async function parseImageTextWithGemini(base64Image: string, mimeType: string) {
 
   try {
     const prompt = `
-     Analyze this marketing creative image comprehensively to extract information for SEO article generation. Follow this structured approach:
+     Analyze this marketing creative image comprehensively to extract information for SEO article generation.
+
+CRITICAL SEGMENT PRESERVATION RULES:
+ - Year ranges (e.g., 2015-2018, 2019-2021) MUST be preserved as SEPARATE sections, not combined
+ - If you see 3 distinct year ranges, create exactly 3 sections in suggestedStructure
+ - Multiple product categories with separate CTAs = separate sections for EACH
+ - If creative says 'X things to know' or 'X must-checks', create EXACTLY X numbered sections
+ - If creative says 'models to avoid' or 'skip these', sections must name SPECIFIC models
+
+Follow this structured approach:
 
 ## STEP 1: TEXT EXTRACTION
 Extract ALL visible text including:
@@ -146,6 +155,12 @@ If the creative shows multiple segments (like year ranges, product categories):
 - Identify what differentiates each segment
 - Note any progression or hierarchy between segments
 - Capture segment-specific benefits or features
+
+MANDATORY RULES:
+ - Count the exact number of segments shown (year ranges, product types, etc.)
+ - Create one suggestedStructure entry for EACH visual segment
+ - Preserve the EXACT text shown for each segment (don't generalize '2015-18' to 'older models')
+ - If segments have equal visual weight, note this for equal content distribution
 
 ## STEP 5: SEO ARTICLE FRAMEWORK
 Based on the above analysis, provide:
@@ -202,8 +217,18 @@ CRITICAL: Return your analysis as valid JSON matching this exact structure:
   "productDetails": "specific offerings",
   "marketingHooks": ["hook1", "hook2"],
   "suggestedStructure": [
-    {"title": "Section 1", "content": "description"},
-    {"title": "Section 2", "content": "description"}
+    {
+      "title": "Section Name",
+      "content": "description",
+      "segment_identifier": "exact text from creative like '2015-18 MODEL'",
+      "weight": "equal|primary|secondary"
+    },
+    {
+      "title": "Section Name",
+      "content": "description",
+      "segment_identifier": "exact text from creative like '2019-21 MODEL'",
+      "weight": "equal|primary|secondary"
+    }
   ],
   "keyThemes": ["theme1", "theme2"],
   "targetKeywords": {
