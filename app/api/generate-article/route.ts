@@ -127,6 +127,8 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
+    structureValid: true,
+    missingSections: [],
     ...metrics
   };
 }
@@ -174,6 +176,38 @@ interface CreativeContext {
   suggestedStructure?: Array<{ title: string; content: string }>;
 }
 
+function validateArticleStructure(
+  article: string,
+  requiredSections: Array<{ title: string; content: string }> | undefined
+): { valid: boolean; missing: string[] } {
+  if (!requiredSections || requiredSections.length === 0) {
+    return { valid: true, missing: [] };
+  }
+
+  const missing: string[] = [];
+
+  for (const section of requiredSections) {
+    // Check multiple patterns for section headings
+    const patterns = [
+      new RegExp(`##\\s*${section.title}`, 'i'),
+      new RegExp(`##\\s*.*${section.title.split(':')[0]}`, 'i'),
+      // For year ranges, check if the years appear in a heading
+      new RegExp(`##\\s*.*${section.title.match(/\\d{4}/)?.[0] || section.title}`, 'i'),
+    ];
+
+    const found = patterns.some(pattern => pattern.test(article));
+
+    if (!found) {
+      missing.push(section.title);
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing,
+  };
+}
+
 async function generateWithGemini(
   description: string,
   primaryKeyword: string,
@@ -189,60 +223,32 @@ async function generateWithGemini(
   }
 
   return await retryWithBackoff(async () => {
-    let creativeContextSection = '';
-    if (creativeContext) {
-      const toneTriggers = creativeContext.emotionalTriggers?.filter(t => ['urgency', 'fear'].includes(t.toLowerCase())) || [];
-      const structure = creativeContext.suggestedStructure;
-      const wordsPerSection = structure && structure.length > 0 ? Math.round(800 / structure.length) : 0;
-      const structureSection = `MANDATORY STRUCTURE REQUIREMENTS:
-${structure && structure.length > 0 ? `CRITICAL REQUIREMENT: You MUST create ALL of the following sections as H2 headings in this EXACT order:
-${structure.map((s, i) => `Section ${i + 1}: ${s.title}
-Required content: ${s.content}
-Approximate words: ${wordsPerSection}`).join('\n')}
-VALIDATION: Your article MUST contain exactly ${structure.length} H2 sections matching the titles above.
-Each section MUST be substantive and directly address its required content.` : ''}`;
-
-      const marketingSection = creativeContext.marketingHooks && creativeContext.marketingHooks.length > 0 ? `
-MANDATORY TALKING POINTS:
-The following points from the marketing creative MUST be addressed:
-${creativeContext.marketingHooks.map(h => `- ${h}`).join('\n')}
-These are not optional - each must be covered in your article.` : '';
-
-      const toneSection = toneTriggers.length > 0 ? `
-TONE REQUIREMENT:
-The creative uses ${toneTriggers.join(' and ')} messaging.
-Your opening paragraph MUST reflect this urgency/concern.
-Use strong, action-oriented language matching the creative's tone.` : '';
-
-      creativeContextSection = `
-CREATIVE CONTEXT:
-- Business Type: ${creativeContext.businessVertical}
-- Target Audience: ${creativeContext.targetAudience}
-- Key Themes to Cover: ${creativeContext.keyThemes?.join(', ')}
-- Article should appeal to: ${creativeContext.emotionalTriggers?.join(' and ')}
-
-${structureSection}
-${marketingSection}
-${toneSection}
-      `;
-    }
-
     const prompt = `
       Write a professional, SEO-optimized article with these specifications:
-
+      
       ARTICLE REQUIREMENTS:
       - Title: "${selectedHeadline}"
       - Primary keyword: "${primaryKeyword}"
       - Target keywords to include: ${selectedKeywords.join(', ')}
       - Word count: Exactly 800 words (750-850 acceptable)
       - Content description: ${description}
-
+      
       RESEARCH REQUIREMENTS:
       - Search the web for current statistics, trends, and insights related to "${primaryKeyword}"
       - Include recent data and examples from authoritative sources
       - Reference current industry best practices and emerging trends
 
-      ${creativeContextSection}
+      ${creativeContext ? `
+CREATIVE CONTEXT:
+- Business Type: ${creativeContext.businessVertical}
+- Target Audience: ${creativeContext.targetAudience}
+- Key Themes to Cover: ${creativeContext.keyThemes?.join(', ')}
+- Article should appeal to: ${creativeContext.emotionalTriggers?.join(' and ')}
+
+STRUCTURE GUIDANCE FROM CREATIVE:
+${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
+` : ''}
+
       SEO SPECIFICATIONS:
       - Include 3-4 H2 sections (## format)
       - Keyword density: 0.5-0.8% maximum
@@ -252,14 +258,14 @@ ${toneSection}
       - Active voice
       - Include current statistics and insights
       - NEVER mention "SEO", "optimization", or "keywords" in the content
-
+      
       STRUCTURE:
       1. Compelling introduction with primary keyword
       2. 3-4 main sections with H2 headings
       3. Strong conclusion
-
+      
       Write the article in markdown format without including the title as H1 since it will be displayed separately. Start directly with the introduction paragraph. Focus on providing genuine value and insights while naturally incorporating the target keywords.
-
+      
       Use web search results to ensure the content is current, accurate, and includes the latest industry insights and statistics.
     `;
 
@@ -342,11 +348,30 @@ ${toneSection}
       }
     }
 
+    let validation: { valid: boolean; missing: string[] } | undefined;
+
+    // Validate structure if creative context was provided
+    if (creativeContext?.suggestedStructure) {
+      validation = validateArticleStructure(cleanedContent, creativeContext.suggestedStructure);
+
+      if (!validation.valid) {
+        console.warn('Article missing required sections:', validation.missing);
+
+        // Optionally retry with stronger enforcement
+        if (validation.missing.length > creativeContext.suggestedStructure.length / 2) {
+          console.error('Article severely misaligned with creative structure');
+          // Could trigger a retry here with even stronger prompt
+        }
+      }
+    }
+
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
 
     return {
       content: cleanedContent,
       title: selectedHeadline,
+      structureValid: validation?.valid ?? true,
+      missingSections: validation?.missing ?? [],
       ...metrics
     };
 
