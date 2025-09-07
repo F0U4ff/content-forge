@@ -52,7 +52,7 @@ async function mockGeminiSuggestionsWithContext(
     keywords.push(...creativeContext.keyThemes);
   }
 
-  keywords = [...new Set(keywords)].slice(0, 15);
+  keywords = Array.from(new Set(keywords)).slice(0, 15);
 
   return {
     headlines,
