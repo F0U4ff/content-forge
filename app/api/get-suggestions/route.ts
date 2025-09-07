@@ -91,6 +91,20 @@ async function getGeminiSuggestionsWithContext(
     `;
     }
 
+    const headlineFormula = creativeContext?.suggestedStructure ? `
+HEADLINE FORMULA:
+Each headline MUST incorporate:
+1. Primary keyword (within first 5 words)
+2. Creative's core message: ${creativeContext.marketingHooks?.[0] || 'key benefit'}
+3. Scope indicator: ${creativeContext.suggestedStructure.length > 1 ? 
+   `(covers ${creativeContext.suggestedStructure.map(s => s.title.match(/\d{4}|\w+/)?.[0]).filter(Boolean).join(', ')})` : 
+   'comprehensive guide'}
+
+Examples based on this creative:
+- "${primaryKeyword}: ${creativeContext.marketingHooks?.[0]} (${creativeContext.suggestedStructure.map(s => s.title).join(' vs ')})"
+- "${primaryKeyword} ${creativeContext.emotionalTriggers?.[0]}: ${creativeContext.suggestedStructure.length} Essential Sections"
+` : '';
+
     const prompt = `
       CRITICAL: You must respond with ONLY valid JSON, no other text or explanations.
 
@@ -98,13 +112,15 @@ async function getGeminiSuggestionsWithContext(
       Primary keyword: "${primaryKeyword}"
       Related keywords: ${relevantKeywords.join(', ')}
       ${contextSection}
+      ${headlineFormula}
 
-      Generate 5 highly relevant, creative-specific headlines that:
+      Generate 5 short, punchy, creative-specific headlines that:
       1. ALL must start with exactly: "${primaryKeyword}:"
-      2. Directly reflect the content and themes from the creative
-      3. Match the emotional tone and marketing approach identified
-      4. Address the target audience's specific needs
-      5. Incorporate the unique selling points when relevant
+      2. Follow the headline formula above
+      3. Directly reflect the content and themes from the creative
+      4. Match the emotional tone and marketing approach identified
+      5. Address the target audience's specific needs
+      6. Incorporate the unique selling points when relevant
 
       ${creativeContext?.marketingHooks ? `
       IMPORTANT: Base headlines on these specific marketing hooks from the creative:
@@ -128,6 +144,7 @@ async function getGeminiSuggestionsWithContext(
       HEADLINE REQUIREMENTS:
       - Every headline MUST begin with exactly: "${primaryKeyword}"
       - Follow with a colon (:) then the rest of the headline
+      - Keep each headline concise and punchy (maximum 12 words)
       - Make them compelling and click-worthy
       - Ensure variety in approach and angle
 
