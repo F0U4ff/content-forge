@@ -62,6 +62,36 @@ function validateKeywordDensity(content: string, primaryKeyword: string): boolea
   return primaryCount >= 4 && primaryCount <= 6;
 }
 
+function cleanGeminiPreambles(content: string): string {
+  // Remove common Gemini preambles
+  const preamblePatterns = [
+    /^Here's an? .*?:\n\n/i,
+    /^I'll .*?:\n\n/i,
+    /^Okay, .*?:\n\n/i,
+    /^Based on .*?:\n\n/i,
+    /^Here's a draft.*?:\n\n/i,
+    /^.*?based on your specifications:?\n\n/i,
+    /^.*?SEO-optimized article.*?:\n\n/i
+  ];
+
+  let cleanedContent = content.trim();
+  for (const pattern of preamblePatterns) {
+    cleanedContent = cleanedContent.replace(pattern, '');
+  }
+
+  // Also remove if the first line doesn't look like article content
+  const firstLine = cleanedContent.split('\n')[0];
+  if (
+    firstLine.toLowerCase().includes('here') ||
+    firstLine.toLowerCase().includes("i'll") ||
+    firstLine.toLowerCase().includes('based on')
+  ) {
+    cleanedContent = cleanedContent.substring(cleanedContent.indexOf('\n') + 1).trim();
+  }
+
+  return cleanedContent;
+}
+
 // Mock article generation for development
 async function mockGenerateArticle(description: string, primaryKeyword: string, selectedHeadline: string, selectedKeywords: string[]) {
   // Simulate API delay
@@ -114,7 +144,7 @@ By focusing on **${selectedKeywords[0]}** and implementing the strategies outlin
 Remember that **${primaryKeyword}** is not a one-time effort but an ongoing process that requires dedication, resources, and patience. The businesses that understand this fundamental truth and commit to long-term excellence will ultimately reap the greatest rewards in today's dynamic marketplace.`;
 
   // Clean the content by removing any H1 markdown from the beginning
-  let cleanedContent = content.trim();
+  let cleanedContent = cleanGeminiPreambles(content.trim());
   
   // If content starts with H1 markdown, remove the entire first line
   if (cleanedContent.startsWith('# ')) {
@@ -357,7 +387,7 @@ ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
     }
 
     // Clean the content by removing any H1 markdown from the beginning
-    let cleanedContent = content.trim();
+    let cleanedContent = cleanGeminiPreambles(content.trim());
     
     // If content starts with H1 markdown, remove the entire first line
     if (cleanedContent.startsWith('# ')) {
