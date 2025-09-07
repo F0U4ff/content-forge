@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Copy, ArrowLeft, Edit3, Send, Loader2 } from 'lucide-react';
-
-interface Article {
-  content: string;
-  title: string;
-}
+import type { Article } from '@/types/app';
 
 export default function ArticlePage() {
   const [article, setArticle] = useState<Article | null>(null);
@@ -270,6 +266,13 @@ export default function ArticlePage() {
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
                 {article.title}
               </h1>
+              {!article.structureValid && article.missingSections?.length > 0 && (
+                <div className="mt-4 mb-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    Missing required sections: {article.missingSections.join(', ')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Article Content */}
