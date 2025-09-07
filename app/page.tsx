@@ -133,7 +133,8 @@ export default function Home() {
           description: state.description,
           primaryKeyword: state.primaryKeyword,
           selectedHeadline: state.selectedHeadline,
-          selectedKeywords: state.selectedKeywords
+          selectedKeywords: state.selectedKeywords,
+          creativeContext: state.creativeContext
         })
       });
 
@@ -142,7 +143,7 @@ export default function Home() {
       }
 
       const data = await response.json();
-      
+
       // Create full article object with metadata
       const fullArticle: Article = {
         id: Date.now().toString(),
@@ -151,6 +152,10 @@ export default function Home() {
         primaryKeyword: state.primaryKeyword,
         selectedKeywords: state.selectedKeywords
       };
+
+      if (!data.article.structureValid) {
+        console.warn('Article missing required sections:', data.article.missingSections);
+      }
       
       // Add to history
       const newHistory = [fullArticle, ...state.articleHistory];
