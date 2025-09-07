@@ -176,6 +176,10 @@ interface CreativeContext {
   suggestedStructure?: Array<{ title: string; content: string }>;
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function validateArticleStructure(
   article: string,
   requiredSections: Array<{ title: string; content: string }> | undefined
@@ -188,11 +192,15 @@ function validateArticleStructure(
 
   for (const section of requiredSections) {
     // Check multiple patterns for section headings
+    const exactTitle = escapeRegExp(section.title);
+    const baseTitle = escapeRegExp(section.title.split(':')[0]);
+    const yearOrTitle = escapeRegExp(section.title.match(/\d{4}/)?.[0] || section.title);
+
     const patterns = [
-      new RegExp(`##\\s*${section.title}`, 'i'),
-      new RegExp(`##\\s*.*${section.title.split(':')[0]}`, 'i'),
+      new RegExp(`##\\s*${exactTitle}`, 'i'),
+      new RegExp(`##\\s*.*${baseTitle}`, 'i'),
       // For year ranges, check if the years appear in a heading
-      new RegExp(`##\\s*.*${section.title.match(/\\d{4}/)?.[0] || section.title}`, 'i'),
+      new RegExp(`##\\s*.*${yearOrTitle}`, 'i'),
     ];
 
     const found = patterns.some(pattern => pattern.test(article));
