@@ -127,6 +127,8 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
+    structureValid: true,
+    missingSections: [],
     ...metrics
   };
 }
@@ -170,7 +172,39 @@ interface CreativeContext {
   targetAudience?: string;
   keyThemes?: string[];
   emotionalTriggers?: string[];
-  suggestedStructure?: Array<{ title: string }>;
+  suggestedStructure?: Array<{ title: string, content: string }>;
+}
+
+function validateArticleStructure(
+  article: string, 
+  requiredSections: Array<{title: string, content: string}> | undefined
+): {valid: boolean, missing: string[]} {
+  if (!requiredSections || requiredSections.length === 0) {
+    return {valid: true, missing: []};
+  }
+  
+  const missing: string[] = [];
+  
+  for (const section of requiredSections) {
+    // Check multiple patterns for section headings
+    const patterns = [
+      new RegExp(`##\\s*${section.title}`, 'i'),
+      new RegExp(`##\\s*.*${section.title.split(':')[0]}`, 'i'),
+      // For year ranges, check if the years appear in a heading
+      new RegExp(`##\\s*.*${section.title.match(/\d{4}/)?.[0] || section.title}`, 'i')
+    ];
+    
+    const found = patterns.some(pattern => pattern.test(article));
+    
+    if (!found) {
+      missing.push(section.title);
+    }
+  }
+  
+  return {
+    valid: missing.length === 0,
+    missing
+  };
 }
 
 async function generateWithGemini(
@@ -313,11 +347,30 @@ ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
       }
     }
 
+    let validation: { valid: boolean; missing: string[] } | undefined;
+
+    // Validate structure if creative context was provided
+    if (creativeContext?.suggestedStructure) {
+      validation = validateArticleStructure(cleanedContent, creativeContext.suggestedStructure);
+
+      if (!validation.valid) {
+        console.warn('Article missing required sections:', validation.missing);
+
+        // Optionally retry with stronger enforcement
+        if (validation.missing.length > creativeContext.suggestedStructure.length / 2) {
+          console.error('Article severely misaligned with creative structure');
+          // Could trigger a retry here with even stronger prompt
+        }
+      }
+    }
+
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
 
     return {
       content: cleanedContent,
       title: selectedHeadline,
+      structureValid: validation?.valid ?? true,
+      missingSections: validation?.missing ?? [],
       ...metrics
     };
 
