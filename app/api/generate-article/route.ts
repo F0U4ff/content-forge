@@ -250,6 +250,11 @@ ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
 ` : ''}
 
       SEO SPECIFICATIONS:
+      - CRITICAL SEO RULE: The primary keyword '${primaryKeyword}' should appear naturally within the first 3-5 words of:
+        • The opening sentence of the article
+        • At least 2 out of your H2 section headings
+        • The first sentence after each H2 heading
+        Do NOT force it as the very first word if it makes the sentence awkward.
       - Include 3-4 H2 sections (## format)
       - Keyword density: 0.5-0.8% maximum
       - Bold the primary keyword and 4-5 other important keywords using **text**
