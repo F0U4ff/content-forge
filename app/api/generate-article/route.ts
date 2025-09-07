@@ -127,6 +127,8 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
+    structureValid: true,
+    missingSections: [],
     ...metrics
   };
 }
@@ -174,6 +176,38 @@ interface CreativeContext {
   suggestedStructure?: Array<{ title: string; content: string }>;
 }
 
+function validateArticleStructure(
+  article: string,
+  requiredSections: Array<{ title: string; content: string }> | undefined
+): { valid: boolean; missing: string[] } {
+  if (!requiredSections || requiredSections.length === 0) {
+    return { valid: true, missing: [] };
+  }
+
+  const missing: string[] = [];
+
+  for (const section of requiredSections) {
+    // Check multiple patterns for section headings
+    const patterns = [
+      new RegExp(`##\\s*${section.title}`, 'i'),
+      new RegExp(`##\\s*.*${section.title.split(':')[0]}`, 'i'),
+      // For year ranges, check if the years appear in a heading
+      new RegExp(`##\\s*.*${section.title.match(/\\d{4}/)?.[0] || section.title}`, 'i'),
+    ];
+
+    const found = patterns.some(pattern => pattern.test(article));
+
+    if (!found) {
+      missing.push(section.title);
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing,
+  };
+}
+
 async function generateWithGemini(
   description: string,
   primaryKeyword: string,
@@ -182,7 +216,7 @@ async function generateWithGemini(
   creativeContext?: CreativeContext
 ) {
   const apiKey = process.env.GEMINI_API_KEY;
-  
+
   if (!apiKey) {
     console.log('No Gemini API key found, using mock data');
     return mockGenerateArticle(description, primaryKeyword, selectedHeadline, selectedKeywords);
@@ -191,24 +225,32 @@ async function generateWithGemini(
   return await retryWithBackoff(async () => {
     let creativeContextSection = '';
     if (creativeContext) {
-      const toneTriggers = creativeContext.emotionalTriggers?.filter(t => ['urgency', 'fear'].includes(t.toLowerCase())) || [];
+      const toneTriggers =
+        creativeContext.emotionalTriggers?.filter(t => ['urgency', 'fear'].includes(t.toLowerCase())) || [];
       const structure = creativeContext.suggestedStructure;
-      const wordsPerSection = structure && structure.length > 0 ? Math.round(800 / structure.length) : 0;
+      const wordsPerSection =
+        structure && structure.length > 0 ? Math.round(800 / structure.length) : 0;
       const structureSection = `MANDATORY STRUCTURE REQUIREMENTS:
 ${structure && structure.length > 0 ? `CRITICAL REQUIREMENT: You MUST create ALL of the following sections as H2 headings in this EXACT order:
-${structure.map((s, i) => `Section ${i + 1}: ${s.title}
-Required content: ${s.content}
-Approximate words: ${wordsPerSection}`).join('\n')}
+${structure
+  .map(
+    (s, i) =>
+      `Section ${i + 1}: ${s.title}\nRequired content: ${s.content}\nApproximate words: ${wordsPerSection}`
+  )
+  .join('\n')}
 VALIDATION: Your article MUST contain exactly ${structure.length} H2 sections matching the titles above.
 Each section MUST be substantive and directly address its required content.` : ''}`;
 
-      const marketingSection = creativeContext.marketingHooks && creativeContext.marketingHooks.length > 0 ? `
+      const marketingSection =
+        creativeContext.marketingHooks && creativeContext.marketingHooks.length > 0
+          ? `
 MANDATORY TALKING POINTS:
 The following points from the marketing creative MUST be addressed:
 ${creativeContext.marketingHooks.map(h => `- ${h}`).join('\n')}
 These are not optional - each must be covered in your article.` : '';
 
-      const toneSection = toneTriggers.length > 0 ? `
+      const toneSection = toneTriggers.length > 0
+        ? `
 TONE REQUIREMENT:
 The creative uses ${toneTriggers.join(' and ')} messaging.
 Your opening paragraph MUST reflect this urgency/concern.
@@ -222,7 +264,9 @@ CREATIVE CONTEXT:
 - Article should appeal to: ${creativeContext.emotionalTriggers?.join(' and ')}
 
 ${structureSection}
+
 ${marketingSection}
+
 ${toneSection}
       `;
     }
@@ -263,28 +307,37 @@ ${toneSection}
       Use web search results to ensure the content is current, accurate, and includes the latest industry insights and statistics.
     `;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        tools: [{
-          google_search: {}
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        }
-      })
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          tools: [
+            {
+              google_search: {},
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 4096,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -293,35 +346,39 @@ ${toneSection}
     }
 
     const data = await response.json();
-    
+
     console.log('Full Gemini API response:', JSON.stringify(data, null, 2));
-    
+
     // Check for content safety issues
     if (data.candidates && data.candidates[0]?.finishReason) {
       const finishReason = data.candidates[0].finishReason;
       console.log('Finish reason:', finishReason);
-      
+
       if (finishReason === 'SAFETY') {
-        throw new Error('Content was blocked by safety filters. Please try with different keywords or description.');
+        throw new Error(
+          'Content was blocked by safety filters. Please try with different keywords or description.'
+        );
       }
       if (finishReason === 'RECITATION') {
-        throw new Error('Content was blocked due to recitation concerns. Please try with more original content.');
+        throw new Error(
+          'Content was blocked due to recitation concerns. Please try with more original content.'
+        );
       }
       if (finishReason === 'OTHER') {
         throw new Error('Content generation was blocked for unknown reasons. Please try again.');
       }
     }
-    
+
     const content = data.candidates[0]?.content?.parts[0]?.text;
-    
+
     console.log('Extracted content length:', content?.length || 0);
     console.log('Content preview:', content?.substring(0, 200) + '...');
-    
+
     if (!content || content.trim().length === 0) {
       console.error('No content in response. Full response:', data);
       throw new Error('No content generated. The API returned an empty response.');
     }
-    
+
     // Check if content is too short (likely incomplete)
     if (content.trim().length < 500) {
       console.warn('Generated content is unusually short:', content.length, 'characters');
@@ -330,7 +387,7 @@ ${toneSection}
 
     // Clean the content by removing any H1 markdown from the beginning
     let cleanedContent = content.trim();
-    
+
     // If content starts with H1 markdown, remove the entire first line
     if (cleanedContent.startsWith('# ')) {
       const firstNewlineIndex = cleanedContent.indexOf('\n');
@@ -342,14 +399,32 @@ ${toneSection}
       }
     }
 
+    let validation: { valid: boolean; missing: string[] } | undefined;
+
+    // Validate structure if creative context was provided
+    if (creativeContext?.suggestedStructure) {
+      validation = validateArticleStructure(cleanedContent, creativeContext.suggestedStructure);
+
+      if (!validation.valid) {
+        console.warn('Article missing required sections:', validation.missing);
+
+        // Optionally retry with stronger enforcement
+        if (validation.missing.length > creativeContext.suggestedStructure.length / 2) {
+          console.error('Article severely misaligned with creative structure');
+          // Could trigger a retry here with even stronger prompt
+        }
+      }
+    }
+
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
 
     return {
       content: cleanedContent,
       title: selectedHeadline,
-      ...metrics
+      structureValid: validation?.valid ?? true,
+      missingSections: validation?.missing ?? [],
+      ...metrics,
     };
-
   }, 3, 1000); // 3 retries with 1 second base delay
 }
 
