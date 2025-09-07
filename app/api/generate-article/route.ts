@@ -57,6 +57,11 @@ function calculateArticleMetrics(content: string, primaryKeyword: string, select
   };
 }
 
+function validateKeywordDensity(content: string, primaryKeyword: string): boolean {
+  const primaryCount = (content.match(new RegExp(primaryKeyword, 'gi')) || []).length;
+  return primaryCount >= 4 && primaryCount <= 6;
+}
+
 // Mock article generation for development
 async function mockGenerateArticle(description: string, primaryKeyword: string, selectedHeadline: string, selectedKeywords: string[]) {
   // Simulate API delay
@@ -123,12 +128,14 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   }
 
   const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
+  const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
   return {
     content: cleanedContent,
     title: selectedHeadline,
     structureValid: true,
     missingSections: [],
+    keywordDensityValid,
     ...metrics
   };
 }
@@ -263,7 +270,17 @@ ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
       - Active voice
       - Include current statistics and insights
       - NEVER mention "SEO", "optimization", or "keywords" in the content
-      
+
+      KEYWORD DISTRIBUTION RULES:
+      - Primary keyword '${primaryKeyword}': Use exactly 4-6 times throughout the article
+        • Once in opening paragraph
+        • Once in 2-3 H2 headings (naturally)
+        • 2-3 times in body paragraphs
+      - Secondary keywords: Use each 1-2 times maximum
+      - NEVER use the same keyword phrase in consecutive sentences
+      - Prioritize natural language flow over keyword insertion
+      - Use pronouns and synonyms to avoid repetition
+
       STRUCTURE:
       1. Compelling introduction with primary keyword
       2. 3-4 main sections with H2 headings
@@ -371,12 +388,14 @@ ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
     }
 
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
+    const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
     return {
       content: cleanedContent,
       title: selectedHeadline,
       structureValid: validation?.valid ?? true,
       missingSections: validation?.missing ?? [],
+      keywordDensityValid,
       ...metrics
     };
 
