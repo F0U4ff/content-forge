@@ -82,7 +82,31 @@ async function mockParseImageText(base64Image: string, mimeType: string) {
 function generateDescriptionFromParsedData(data: ParsedCreativeData): string {
   let description = `${data.businessVertical} offering ${data.productDetails}. `;
 
-  if (data.marketingHooks.length > 0) {
+  // CRITICAL: Preserve segment structure
+  if (data.suggestedStructure && data.suggestedStructure.length > 1) {
+    description += `IMPORTANT: Content MUST be organized into exactly ${data.suggestedStructure.length} distinct sections: `;
+    description += data.suggestedStructure
+      .map((s, index) => `(${index + 1}) ${s.title}`)
+      .join(', ') + '. ';
+  }
+
+  // Add specific requirements if present
+  if (data.suggestedStructure && data.suggestedStructure.length > 0) {
+    const hasYearRanges = data.suggestedStructure.some(s => /\d{4}/.test(s.title));
+    if (hasYearRanges) {
+      description += 'Each year range must be covered separately. ';
+    }
+
+    const hasNumberedItems = data.extractedText.some(text =>
+      /\d+\s*(must|things|tips|checks)/.test(text.toLowerCase())
+    );
+    if (hasNumberedItems) {
+      description += 'Article must deliver the exact number of items promised. ';
+    }
+  }
+
+  // Continue with existing marketing hooks and other elements
+  if (data.marketingHooks && data.marketingHooks.length > 0) {
     description += `Key value propositions include ${data.marketingHooks.slice(0, 2).join(' and ')}. `;
   }
 
@@ -90,11 +114,11 @@ function generateDescriptionFromParsedData(data: ParsedCreativeData): string {
     description += `Targeting ${data.targetAudience}. `;
   }
 
-  if (data.keyThemes.length > 0) {
+  if (data.keyThemes && data.keyThemes.length > 0) {
     description += `The content should cover ${data.keyThemes.join(', ')}. `;
   }
 
-  if (data.emotionalTriggers.length > 0) {
+  if (data.emotionalTriggers && data.emotionalTriggers.length > 0) {
     description += `Appeal to ${data.emotionalTriggers.join(' and ')} to engage readers.`;
   }
 
