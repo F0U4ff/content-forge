@@ -160,12 +160,12 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
   const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
+  console.log('Structure validation (mock):', { valid: true, missing: [] });
+  console.log('Keyword density valid (mock):', keywordDensityValid);
+
   return {
     content: cleanedContent,
     title: selectedHeadline,
-    structureValid: true,
-    missingSections: [],
-    keywordDensityValid,
     ...metrics
   };
 }
@@ -438,12 +438,14 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
     const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
+    if (validation) {
+      console.log('Structure validation result:', validation);
+    }
+    console.log('Keyword density valid:', keywordDensityValid);
+
     return {
       content: cleanedContent,
       title: selectedHeadline,
-      structureValid: validation?.valid ?? true,
-      missingSections: validation?.missing ?? [],
-      keywordDensityValid,
       ...metrics
     };
 
