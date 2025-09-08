@@ -13,4 +13,10 @@ describe('refineHeadlinesWithNewKeyword', () => {
     const result = await refineHeadlinesWithNewKeyword(headlines, 'NewKey');
     expect(result).toEqual(['NewKey: The quick brown fox']);
   });
+
+  it('returns original headline if keyword already exists without colon', async () => {
+    const headlines = ['NewKey and the quick brown fox'];
+    const result = await refineHeadlinesWithNewKeyword(headlines, 'NewKey');
+    expect(result).toEqual(['NewKey and the quick brown fox']);
+  });
 });
