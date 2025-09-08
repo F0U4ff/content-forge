@@ -191,6 +191,9 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
+    // TODO: implement real prompt-generation logic
+    structureValidation: { valid: true, missing: [] },
+    keywordDensityValid,
     ...metrics
   };
 }
@@ -522,6 +525,8 @@ ${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
     return {
       content: cleanedContent,
       title: selectedHeadline,
+      structureValidation: validation,
+      keywordDensityValid,
       ...metrics
     };
   }

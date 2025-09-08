@@ -5,6 +5,8 @@ export interface Article {
   keywordDensity: number;
   readingTime: number;
   seoScore: number;
+  structureValidation?: { valid: boolean; missing: string[] };
+  keywordDensityValid?: boolean;
   title: string;
   createdAt: string;
   primaryKeyword: string;

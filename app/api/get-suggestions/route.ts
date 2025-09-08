@@ -19,10 +19,10 @@ async function mockGeminiSuggestionsWithContext(
   primaryKeyword: string,
   relevantKeywords: string[],
   creativeContext?: CreativeContext
-) {
+): Promise<{ headlines: string[]; keywords: string[] }> {
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  let headlines = [];
+  let headlines: string[] = [];
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
     headlines = creativeContext.marketingHooks.slice(0, 5).map(hook =>
@@ -38,7 +38,7 @@ async function mockGeminiSuggestionsWithContext(
     ];
   }
 
-  let keywords = [...relevantKeywords.slice(0, 8)];
+  let keywords: string[] = [...relevantKeywords.slice(0, 8)];
 
   if (creativeContext?.suggestedStructure) {
     creativeContext.suggestedStructure.forEach(section => {
@@ -52,11 +52,12 @@ async function mockGeminiSuggestionsWithContext(
     keywords.push(...creativeContext.keyThemes);
   }
 
-  keywords = Array.from(new Set(keywords)).slice(0, 15);
+  const uniqueHeadlines: string[] = Array.from(new Set(headlines));
+  const uniqueKeywords: string[] = Array.from(new Set(keywords)).slice(0, 15);
 
   return {
-    headlines,
-    keywords
+    headlines: uniqueHeadlines,
+    keywords: uniqueKeywords
   };
 }
 
@@ -65,7 +66,7 @@ async function getGeminiSuggestionsWithContext(
   primaryKeyword: string,
   relevantKeywords: string[],
   creativeContext?: CreativeContext
-) {
+): Promise<{ headlines: string[]; keywords: string[] }> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
@@ -218,12 +219,18 @@ Examples based on this creative:
       return mockGeminiSuggestionsWithContext(description, primaryKeyword, relevantKeywords, creativeContext);
     }
 
-    if (!parsed.headlines || !Array.isArray(parsed.headlines) || 
+    if (!parsed.headlines || !Array.isArray(parsed.headlines) ||
         !parsed.keywords || !Array.isArray(parsed.keywords)) {
       throw new Error('Invalid JSON structure in response');
     }
 
-    return parsed;
+    const uniqueHeadlines: string[] = Array.from(new Set(parsed.headlines as string[]));
+    const uniqueKeywords: string[] = Array.from(new Set(parsed.keywords as string[])).slice(0, 15);
+
+    return {
+      headlines: uniqueHeadlines,
+      keywords: uniqueKeywords
+    };
     
   } catch (error) {
     console.error('Gemini API error:', error);
