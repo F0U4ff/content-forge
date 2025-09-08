@@ -153,10 +153,6 @@ export default function Home() {
         selectedKeywords: state.selectedKeywords
       };
 
-      if (!data.article.structureValid) {
-        console.warn('Article missing required sections:', data.article.missingSections);
-      }
-      
       // Add to history
       const newHistory = [fullArticle, ...state.articleHistory];
       

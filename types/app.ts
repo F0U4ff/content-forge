@@ -9,16 +9,6 @@ export interface Article {
   createdAt: string;
   primaryKeyword: string;
   selectedKeywords: string[];
-  /**
-   * Indicates whether the generated article matches the expected section
-   * structure provided in the creative context.
-   */
-  structureValid: boolean;
-  /**
-   * Titles of required sections that were not found in the generated
-   * article. Empty when `structureValid` is `true`.
-   */
-  missingSections: string[];
 }
 
 export interface AppState {
