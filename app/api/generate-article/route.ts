@@ -213,6 +213,36 @@ interface CreativeContext {
   suggestedStructure?: Array<{ title: string; content: string }>;
 }
 
+function extractKeywords(text: string): string[] {
+  const tokens = new Set<string>();
+  const lower = text.toLowerCase();
+
+  const rangeMatch = lower.match(/(\d{2,4})\s*(?:-|to)\s*(\d{2,4})/);
+  if (rangeMatch) {
+    const start = parseInt(rangeMatch[1], 10);
+    const endStr = rangeMatch[2];
+    const end = parseInt(
+      endStr.length === 2 ? `${String(start).slice(0, 2)}${endStr}` : endStr,
+      10
+    );
+    const startShort = String(start).slice(-2);
+    const endShort = String(end).slice(-2);
+
+    [String(start), String(end), startShort, endShort].forEach(t => tokens.add(t));
+    [`${start}-${end}`, `${start}-${endShort}`, `${start} to ${end}`, `${startShort}-${endShort}`].forEach(t => tokens.add(t));
+  }
+
+  const words = lower.match(/[a-z0-9]+/g) || [];
+  words.forEach(w => {
+    tokens.add(w);
+    if (/^\d{4}$/.test(w)) {
+      tokens.add(w.slice(-2));
+    }
+  });
+
+  return Array.from(tokens);
+}
+
 function validateArticleStructure(
   article: string,
   requiredSections: Array<{ title: string; content: string }> | undefined
@@ -220,21 +250,32 @@ function validateArticleStructure(
   if (!requiredSections || requiredSections.length === 0) {
     return { valid: true, missing: [] };
   }
-
   const missing: string[] = [];
 
+  const h2Headings = article
+    .split('\n')
+    .filter(line => line.startsWith('##'))
+    .map(h => h.replace(/^##\s*/, '').toLowerCase());
+
   for (const section of requiredSections) {
-    // Check multiple patterns for section headings
-    const patterns = [
-      new RegExp(`##\\s*${section.title}`, 'i'),
-      new RegExp(`##\\s*.*${section.title.split(':')[0]}`, 'i'),
-      // For year ranges, check if the years appear in a heading
-      new RegExp(`##\\s*.*${section.title.match(/\\d{4}/)?.[0] || section.title}`, 'i'),
-    ];
+    const expectedKeywords = extractKeywords(section.title.toLowerCase());
 
-    const found = patterns.some(pattern => pattern.test(article));
+    let bestMatch = 0;
 
-    if (!found) {
+    for (const heading of h2Headings) {
+      const headingKeywords = extractKeywords(heading);
+
+      const matchCount = expectedKeywords.filter(keyword =>
+        headingKeywords.some(hk => hk.includes(keyword) || keyword.includes(hk))
+      ).length;
+
+      const ratio = matchCount / expectedKeywords.length;
+      bestMatch = Math.max(bestMatch, ratio);
+
+      if (bestMatch >= 0.6) break;
+    }
+
+    if (bestMatch === 0) {
       missing.push(section.title);
     }
   }
