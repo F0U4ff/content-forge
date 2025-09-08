@@ -63,30 +63,55 @@ function validateKeywordDensity(content: string, primaryKeyword: string): boolea
 }
 
 function cleanGeminiPreambles(content: string): string {
+  let cleanedContent = content.trim();
+
   // Remove common Gemini preambles
-  const preamblePatterns = [
-    /^Here's an? .*?:\n\n/i,
-    /^I'll .*?:\n\n/i,
-    /^Okay, .*?:\n\n/i,
-    /^Based on .*?:\n\n/i,
-    /^Here's a draft.*?:\n\n/i,
-    /^.*?based on your specifications:?\n\n/i,
-    /^.*?SEO-optimized article.*?:\n\n/i
+  const preamblePatterns: RegExp[] = [
+    /^Here's an? .*?[.:]\s*\n+/i,
+    /^I'll .*?[.:]\s*\n+/i,
+    /^Okay, .*?[.:]\s*\n+/i,
+    /^Based on .*?[.:]\s*\n+/i,
+    /^Here's a draft.*?[.:]\s*\n+/i,
+    /^.*?based on your specifications[.:]?\s*\n+/i,
+    /^.*?SEO-optimized article.*?[.:]\s*\n+/i,
+    /^Okay,.*?guidelines\.?\s*\n+/is,
+    /^I(?:'ll| will) .*?(?:write|create|generate|draft).*?[.:]?\s*\n+/im
   ];
 
-  let cleanedContent = content.trim();
   for (const pattern of preamblePatterns) {
     cleanedContent = cleanedContent.replace(pattern, '');
   }
 
-  // Also remove if the first line doesn't look like article content
-  const firstLine = cleanedContent.split('\n')[0];
+  const metaPhrases = [
+    'according to your specifications',
+    'based on your requirements',
+    'i understand',
+    'let me create'
+  ];
+
+  const first200 = cleanedContent.slice(0, 200).toLowerCase();
+  const hasMeta = metaPhrases.some(phrase => first200.includes(phrase));
+
+  if (hasMeta) {
+    const paragraphs = cleanedContent.split(/\n\s*\n/);
+    const startIdx = paragraphs.findIndex(p => {
+      const lower = p.toLowerCase();
+      return !metaPhrases.some(mp => lower.includes(mp));
+    });
+    if (startIdx > 0) {
+      cleanedContent = paragraphs.slice(startIdx).join('\n\n').trim();
+    }
+  }
+
+  // Fallback: remove the first paragraph if it's short or still contains meta language
+  let paragraphs = cleanedContent.split(/\n\s*\n/);
+  const firstParagraph = paragraphs[0] || '';
   if (
-    firstLine.toLowerCase().includes('here') ||
-    firstLine.toLowerCase().includes("i'll") ||
-    firstLine.toLowerCase().includes('based on')
+    firstParagraph.length < 50 ||
+    /specifications|requirements/i.test(firstParagraph)
   ) {
-    cleanedContent = cleanedContent.substring(cleanedContent.indexOf('\n') + 1).trim();
+    paragraphs = paragraphs.slice(1);
+    cleanedContent = paragraphs.join('\n\n').trim();
   }
 
   return cleanedContent;
