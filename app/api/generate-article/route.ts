@@ -116,7 +116,6 @@ function cleanGeminiPreambles(content: string): string {
 
   return cleanedContent;
 }
-
 // Mock article generation for development
 async function mockGenerateArticle(description: string, primaryKeyword: string, selectedHeadline: string, selectedKeywords: string[]) {
   // Simulate API delay
@@ -191,9 +190,8 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
-    // TODO: implement real prompt-generation logic
-    structureValidation: { valid: true, missing: [] },
-    keywordDensityValid,
+    structureValid: true,
+    missingSections: [],
     ...metrics
   };
 }
@@ -389,7 +387,6 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
       - Include current statistics and insights
       - Never mention "SEO", "optimization", or "keywords" in the content
       - Prioritize natural language flow and use pronouns and synonyms to avoid repetition
-
       STRUCTURE:
       1. Compelling introduction with primary keyword
       2. 3-4 main sections with H2 headings
@@ -514,8 +511,8 @@ ${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
       }
     }
 
-    const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
     const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
+    const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
 
     if (validation) {
       console.log('Structure validation result:', validation);
@@ -525,6 +522,8 @@ ${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
     return {
       content: cleanedContent,
       title: selectedHeadline,
+      structureValid: validation?.valid ?? true,
+      missingSections: validation?.missing ?? [],
       ...metrics
     };
   }
