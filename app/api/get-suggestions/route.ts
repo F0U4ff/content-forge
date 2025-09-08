@@ -26,15 +26,15 @@ async function mockGeminiSuggestionsWithContext(
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
     headlines = creativeContext.marketingHooks.slice(0, 5).map(hook =>
-      `${primaryKeyword}: ${hook}`
+      `${primaryKeyword} ${hook}`.trim()
     );
   } else {
     headlines = [
-      `${primaryKeyword}: The Ultimate Guide to Getting the Best Deal`,
-      `${primaryKeyword}: Avoid These Costly Mistakes`,
-      `${primaryKeyword}: Expert Tips and Strategies`,
-      `${primaryKeyword}: Complete Buyer's Guide`,
-      `${primaryKeyword}: Everything You Need to Know`
+      `The Ultimate ${primaryKeyword} Guide to Getting the Best Deal`,
+      `Avoid Costly ${primaryKeyword} Mistakes`,
+      `Expert ${primaryKeyword} Tips and Strategies`,
+      `Complete ${primaryKeyword} Buyer's Guide`,
+      `Everything to Know About ${primaryKeyword}`
     ];
   }
 
@@ -101,8 +101,8 @@ Each headline MUST incorporate:
    'comprehensive guide'}
 
 Examples based on this creative:
-- "${primaryKeyword}: ${creativeContext.marketingHooks?.[0]} (${creativeContext.suggestedStructure.map(s => s.title).join(' vs ')})"
-- "${primaryKeyword} ${creativeContext.emotionalTriggers?.[0]}: ${creativeContext.suggestedStructure.length} Essential Sections"
+- "${creativeContext.marketingHooks?.[0]} with ${primaryKeyword} (${creativeContext.suggestedStructure.map(s => s.title).join(' vs ')})"
+- "${creativeContext.emotionalTriggers?.[0]} secrets for ${primaryKeyword} - ${creativeContext.suggestedStructure.length} Essential Sections"
 ` : '';
 
     const prompt = `
@@ -115,7 +115,7 @@ Examples based on this creative:
       ${headlineFormula}
 
       Generate 5 short, punchy, creative-specific headlines that:
-      1. ALL must start with exactly: "${primaryKeyword}:"
+      1. Include the primary keyword naturally within the first 5 words
       2. Follow the headline formula above
       3. Directly reflect the content and themes from the creative
       4. Match the emotional tone and marketing approach identified
@@ -133,7 +133,7 @@ Examples based on this creative:
       ` : ''}
 
       Search the web for current trends and insights, then provide:
-      1. Five compelling article headlines - CRITICAL: ALL headlines MUST start with the exact primary keyword "${primaryKeyword}"
+      1. Five compelling article headlines - CRITICAL: Each headline must include the primary keyword within the first 5 words
          - One benefit-focused headline
          - One problem-solving headline
          - One curiosity-driven headline
@@ -142,8 +142,9 @@ Examples based on this creative:
       2. 10-15 SEO keyword suggestions related to the topic
 
       HEADLINE REQUIREMENTS:
-      - Every headline MUST begin with exactly: "${primaryKeyword}"
-      - Follow with a colon (:) then the rest of the headline
+      - Include the primary keyword naturally within the first 5 words
+      - Do not force the keyword to start the headline
+      - Avoid using a colon after the primary keyword
       - Keep each headline concise and punchy (maximum 12 words)
       - Make them compelling and click-worthy
       - Ensure variety in approach and angle
@@ -151,11 +152,11 @@ Examples based on this creative:
       Respond with ONLY this JSON structure (no markdown, no explanations, just pure JSON):
       {
         "headlines": [
-          "${primaryKeyword}: headline1 based on ${description}",
-          "${primaryKeyword}: headline2 inspired by ${description}",
-          "${primaryKeyword}: headline3 related to ${description}",
-          "${primaryKeyword}: headline4 reflecting ${description}",
-          "${primaryKeyword}: headline5 focusing on ${description}"
+          "headline1 featuring ${primaryKeyword} based on ${description}",
+          "headline2 about ${primaryKeyword} inspired by ${description}",
+          "headline3 with ${primaryKeyword} related to ${description}",
+          "headline4 highlighting ${primaryKeyword} reflecting ${description}",
+          "headline5 focusing on ${primaryKeyword} from ${description}"
         ],
         "keywords": [
           "keyword1 from ${description}",
@@ -230,10 +231,21 @@ Examples based on this creative:
   }
 }
 
-async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: string) {
-  // This function will refine existing headlines based on a new keyword
+async function refineHeadlinesWithNewKeyword(
+  headlines: string[],
+  oldKeyword: string,
+  newKeyword: string
+) {
+  // Replace the original keyword with the new one while keeping the headline natural
   return headlines.map((headline) => {
-    return `${newKeyword}: ${headline.split(":")[1].trim()}`;
+    const regex = new RegExp(`\\b${oldKeyword}\\b`, 'i');
+    if (regex.test(headline)) {
+      return headline.replace(regex, newKeyword);
+    }
+    // If the old keyword isn't found, insert the new keyword at the beginning
+    const words = headline.split(' ');
+    words.splice(0, 0, newKeyword);
+    return words.join(' ');
   });
 }
 
@@ -262,7 +274,11 @@ export async function POST(request: NextRequest) {
     let refinedHeadlines = suggestions.headlines;
 
     if (newKeyword) {
-      refinedHeadlines = await refineHeadlinesWithNewKeyword(suggestions.headlines, newKeyword);
+      refinedHeadlines = await refineHeadlinesWithNewKeyword(
+        suggestions.headlines,
+        primaryKeyword,
+        newKeyword
+      );
     }
 
     // Return refined suggestions
