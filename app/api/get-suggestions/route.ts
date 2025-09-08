@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  extractYearSegments,
+  type SuggestedSection,
+} from '@/lib/extractYearSegments';
 
 interface CreativeContext {
   marketingHooks?: string[];
-  suggestedStructure?: Array<{ title: string; content: string }>;
+  suggestedStructure?: SuggestedSection[];
   emotionalTriggers?: string[];
   targetAudience?: string;
   uniqueSellingPoints?: string[];
@@ -23,33 +27,8 @@ async function mockGeminiSuggestionsWithContext(
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   let headlines = [];
-  const yearRangePattern = /((?:19|20)\d{2})\s*-\s*(\d{2}|\d{4})/g;
-  const yearRanges: string[] = [];
-  const productSegments: string[] = [];
-
-  if (creativeContext?.suggestedStructure) {
-    creativeContext.suggestedStructure.forEach(section => {
-      yearRangePattern.lastIndex = 0;
-      let match: RegExpExecArray | null;
-      let foundYear = false;
-      while ((match = yearRangePattern.exec(section.title)) !== null) {
-        foundYear = true;
-        const start = match[1];
-        const end = match[2].length === 2 ? start.slice(0, 2) + match[2] : match[2];
-        yearRanges.push(`${start}-${end}`);
-      }
-      if (!foundYear) {
-        const segment = section.title
-          .replace(yearRangePattern, '')
-          .replace(/models?/i, '')
-          .trim();
-        if (segment) productSegments.push(segment);
-      }
-    });
-  }
-
-  const uniqueYearRanges = Array.from(new Set(yearRanges));
-  const uniqueSegments = Array.from(new Set(productSegments));
+  const { yearRanges: uniqueYearRanges, productSegments: uniqueSegments } =
+    extractYearSegments(creativeContext?.suggestedStructure);
   const urgentHook = creativeContext?.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
@@ -114,32 +93,14 @@ async function getGeminiSuggestionsWithContext(
   }
 
   try {
-    const yearRangePattern = /((?:19|20)\d{2})\s*-\s*(\d{2}|\d{4})/g;
     let yearRanges: string[] = [];
     let productSegments: string[] = [];
     let urgentHook: string | undefined;
 
     if (creativeContext) {
-      creativeContext.suggestedStructure?.forEach(section => {
-        yearRangePattern.lastIndex = 0;
-        let match: RegExpExecArray | null;
-        let foundYear = false;
-        while ((match = yearRangePattern.exec(section.title)) !== null) {
-          foundYear = true;
-          const start = match[1];
-          const end = match[2].length === 2 ? start.slice(0, 2) + match[2] : match[2];
-          yearRanges.push(`${start}-${end}`);
-        }
-        if (!foundYear) {
-          const segment = section.title
-            .replace(yearRangePattern, '')
-            .replace(/models?/i, '')
-            .trim();
-          if (segment) productSegments.push(segment);
-        }
-      });
-      yearRanges = Array.from(new Set(yearRanges));
-      productSegments = Array.from(new Set(productSegments));
+      const extracted = extractYearSegments(creativeContext.suggestedStructure);
+      yearRanges = extracted.yearRanges;
+      productSegments = extracted.productSegments;
       urgentHook = creativeContext.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
     }
 
