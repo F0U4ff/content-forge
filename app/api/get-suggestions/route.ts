@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  extractYearSegments,
+  type SuggestedSection,
+} from '@/lib/extractYearSegments';
 
 interface CreativeContext {
   marketingHooks?: string[];
-  suggestedStructure?: Array<{ title: string; content: string }>;
+  suggestedStructure?: SuggestedSection[];
   emotionalTriggers?: string[];
   targetAudience?: string;
   uniqueSellingPoints?: string[];
@@ -23,11 +27,15 @@ async function mockGeminiSuggestionsWithContext(
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   let headlines = [];
+  // Extract year ranges and product segments using regex
+  const { yearRanges, productSegments } =
+    extractYearSegments(creativeContext?.suggestedStructure);
+  const urgentHook = creativeContext?.marketingHooks?.find(h =>
+    /don't|avoid|never|mistake|warning|urgent/i.test(h)
+  );
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
-    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook =>
-      `${primaryKeyword} ${hook}`.trim()
-    );
+    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook => `${primaryKeyword}: ${hook}`);
   } else {
     headlines = [
       `The Ultimate ${primaryKeyword} Guide to Getting the Best Deal`,
@@ -36,6 +44,20 @@ async function mockGeminiSuggestionsWithContext(
       `Complete ${primaryKeyword} Buyer's Guide`,
       `Everything to Know About ${primaryKeyword}`
     ];
+  }
+
+  if (yearRanges.length >= 3) {
+    for (let i = 0; i < 3 && i < headlines.length; i++) {
+      headlines[i] = `${headlines[i]} (${yearRanges[i]} models)`;
+    }
+  } else if (productSegments.length >= 3) {
+    for (let i = 0; i < 3 && i < headlines.length; i++) {
+      headlines[i] = `${headlines[i]} (${productSegments[i]})`;
+    }
+  }
+
+  if (urgentHook) {
+    headlines[headlines.length - 1] = `${primaryKeyword}: ${urgentHook}`;
   }
 
   let keywords = [...relevantKeywords.slice(0, 8)];
@@ -75,6 +97,17 @@ async function getGeminiSuggestionsWithContext(
   }
 
   try {
+    let yearRanges: string[] = [];
+    let productSegments: string[] = [];
+    let urgentHook: string | undefined;
+
+    if (creativeContext) {
+      const extracted = extractYearSegments(creativeContext.suggestedStructure);
+      yearRanges = extracted.yearRanges;
+      productSegments = extracted.productSegments;
+      urgentHook = creativeContext.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
+    }
+
     // Before building the prompt, add this context section:
     let contextSection = '';
     if (creativeContext) {
@@ -92,13 +125,28 @@ async function getGeminiSuggestionsWithContext(
     `;
     }
 
+    const additionalInstructions: string[] = [
+      'If the creative shows 3 year ranges, at least 3 headlines must mention those specific years. If the creative has urgent warnings, reflect that tone.',
+      "Make the headlines specific to what's actually in the creative, not generic."
+    ];
+    if (yearRanges.length) {
+      additionalInstructions.push(`Year ranges detected: ${yearRanges.join(', ')}`);
+    }
+    if (productSegments.length) {
+      additionalInstructions.push(`Product segments detected: ${productSegments.join(', ')}`);
+    }
+    if (urgentHook) {
+      additionalInstructions.push(`Include at least one urgent headline using tone like: \"${urgentHook}\"`);
+    }
+    const additionalRequirements = additionalInstructions.map(r => `      - ${r}`).join('\n');
+
     const headlineFormula = creativeContext?.suggestedStructure ? `
 HEADLINE FORMULA:
 Each headline MUST incorporate:
 1. Primary keyword (within first 5 words)
 2. Creative's core message: ${creativeContext.marketingHooks?.[0] || 'key benefit'}
-3. Scope indicator: ${creativeContext.suggestedStructure.length > 1 ? 
-   `(covers ${creativeContext.suggestedStructure.map(s => s.title.match(/\d{4}|\w+/)?.[0]).filter(Boolean).join(', ')})` : 
+3. Scope indicator: ${creativeContext.suggestedStructure.length > 1 ?
+   `(covers ${creativeContext.suggestedStructure.map(s => s.title.match(/\d{4}|\w+/)?.[0]).filter(Boolean).join(', ')})` :
    'comprehensive guide'}
 
 Examples based on this creative:
@@ -116,12 +164,13 @@ Examples based on this creative:
       ${headlineFormula}
 
       Generate 5 short, punchy, creative-specific headlines that:
-      1. Include the primary keyword naturally within the first 5 words
+      1. ALL must start with exactly: "${primaryKeyword}:"
       2. Follow the headline formula above
       3. Directly reflect the content and themes from the creative
       4. Match the emotional tone and marketing approach identified
       5. Address the target audience's specific needs
       6. Incorporate the unique selling points when relevant
+${additionalRequirements}
 
       ${creativeContext?.marketingHooks ? `
       IMPORTANT: Base headlines on these specific marketing hooks from the creative:
@@ -134,7 +183,7 @@ Examples based on this creative:
       ` : ''}
 
       Search the web for current trends and insights, then provide:
-      1. Five compelling article headlines - CRITICAL: Each headline must include the primary keyword within the first 5 words
+      1. Five compelling article headlines - CRITICAL: ALL headlines MUST start with the exact primary keyword "${primaryKeyword}"
          - One benefit-focused headline
          - One problem-solving headline
          - One curiosity-driven headline
@@ -143,9 +192,8 @@ Examples based on this creative:
       2. 10-15 SEO keyword suggestions related to the topic
 
       HEADLINE REQUIREMENTS:
-      - Include the primary keyword naturally within the first 5 words
-      - Do not force the keyword to start the headline
-      - Avoid using a colon after the primary keyword
+      - Every headline MUST begin with exactly: "${primaryKeyword}"
+      - Follow with a colon (:) then the rest of the headline
       - Keep each headline concise and punchy (maximum 12 words)
       - Make them compelling and click-worthy
       - Ensure variety in approach and angle
@@ -153,11 +201,11 @@ Examples based on this creative:
       Respond with ONLY this JSON structure (no markdown, no explanations, just pure JSON):
       {
         "headlines": [
-          "headline1 featuring ${primaryKeyword} based on ${description}",
-          "headline2 about ${primaryKeyword} inspired by ${description}",
-          "headline3 with ${primaryKeyword} related to ${description}",
-          "headline4 highlighting ${primaryKeyword} reflecting ${description}",
-          "headline5 focusing on ${primaryKeyword} from ${description}"
+          "${primaryKeyword}: headline1 based on ${description}",
+          "${primaryKeyword}: headline2 inspired by ${description}",
+          "${primaryKeyword}: headline3 related to ${description}",
+          "${primaryKeyword}: headline4 reflecting ${description}",
+          "${primaryKeyword}: headline5 focusing on ${description}"
         ],
         "keywords": [
           "keyword1 from ${description}",
@@ -224,13 +272,7 @@ Examples based on this creative:
       throw new Error('Invalid JSON structure in response');
     }
 
-    const uniqueHeadlines = Array.from(new Set(parsed.headlines));
-    const uniqueKeywords = Array.from(new Set(parsed.keywords)).slice(0, 15);
-
-    return {
-      headlines: uniqueHeadlines,
-      keywords: uniqueKeywords
-    };
+    return parsed;
     
   } catch (error) {
     console.error('Gemini API error:', error);
@@ -238,21 +280,22 @@ Examples based on this creative:
   }
 }
 
-async function refineHeadlinesWithNewKeyword(
-  headlines: string[],
-  oldKeyword: string,
-  newKeyword: string
-) {
-  // Replace the original keyword with the new one while keeping the headline natural
+export async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: string) {
+  // This function will refine existing headlines based on a new keyword
   return headlines.map((headline) => {
-    const regex = new RegExp(`\\b${oldKeyword}\\b`, 'i');
-    if (regex.test(headline)) {
-      return headline.replace(regex, newKeyword);
+    const trimmedHeadline = headline.trim();
+
+    // Only split when a colon exists in the headline
+    if (!trimmedHeadline.includes(':')) {
+      // If the headline already contains the new keyword, leave it unchanged
+      return trimmedHeadline.toLowerCase().includes(newKeyword.toLowerCase())
+        ? trimmedHeadline
+        : `${newKeyword}: ${trimmedHeadline}`;
     }
-    // If the old keyword isn't found, insert the new keyword at the beginning
-    const words = headline.split(' ');
-    words.splice(0, 0, newKeyword);
-    return words.join(' ');
+
+    const [, ...rest] = trimmedHeadline.split(':');
+    const refinedText = rest.join(':').trim();
+    return `${newKeyword}: ${refinedText}`;
   });
 }
 
@@ -283,7 +326,6 @@ export async function POST(request: NextRequest) {
     if (newKeyword) {
       refinedHeadlines = await refineHeadlinesWithNewKeyword(
         suggestions.headlines,
-        primaryKeyword,
         newKeyword
       );
     }
@@ -302,6 +344,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
