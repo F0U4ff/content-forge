@@ -27,9 +27,12 @@ async function mockGeminiSuggestionsWithContext(
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   let headlines = [];
-  const { yearRanges: uniqueYearRanges, productSegments: uniqueSegments } =
+  // Extract year ranges and product segments using regex
+  const { yearRanges, productSegments } =
     extractYearSegments(creativeContext?.suggestedStructure);
-  const urgentHook = creativeContext?.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
+  const urgentHook = creativeContext?.marketingHooks?.find(h =>
+    /don't|avoid|never|mistake|warning|urgent/i.test(h)
+  );
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
     headlines = creativeContext.marketingHooks.slice(0, 5).map(hook => `${primaryKeyword}: ${hook}`);
@@ -43,13 +46,13 @@ async function mockGeminiSuggestionsWithContext(
     ];
   }
 
-  if (uniqueYearRanges.length >= 3) {
+  if (yearRanges.length >= 3) {
     for (let i = 0; i < 3 && i < headlines.length; i++) {
-      headlines[i] = `${headlines[i]} (${uniqueYearRanges[i]} models)`;
+      headlines[i] = `${headlines[i]} (${yearRanges[i]} models)`;
     }
-  } else if (uniqueSegments.length >= 3) {
+  } else if (productSegments.length >= 3) {
     for (let i = 0; i < 3 && i < headlines.length; i++) {
-      headlines[i] = `${headlines[i]} (${uniqueSegments[i]})`;
+      headlines[i] = `${headlines[i]} (${productSegments[i]})`;
     }
   }
 
