@@ -176,8 +176,8 @@ HEADLINE FORMULA:
 Each headline MUST incorporate:
 1. Primary keyword (within first 5 words)
 2. Creative's core message: ${creativeContext.marketingHooks?.[0] || 'key benefit'}
-3. Scope indicator: ${creativeContext.suggestedStructure.length > 1 ? 
-   `(covers ${creativeContext.suggestedStructure.map(s => s.title.match(/\d{4}|\w+/)?.[0]).filter(Boolean).join(', ')})` : 
+3. Scope indicator: ${creativeContext.suggestedStructure.length > 1 ?
+   `(covers ${creativeContext.suggestedStructure.map(s => s.title.match(/\d{4}|\w+/)?.[0]).filter(Boolean).join(', ')})` :
    'comprehensive guide'}
 
 Examples based on this creative:

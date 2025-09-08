@@ -57,41 +57,6 @@ function calculateArticleMetrics(content: string, primaryKeyword: string, select
   };
 }
 
-function validateKeywordDensity(content: string, primaryKeyword: string): boolean {
-  const primaryCount = (content.match(new RegExp(primaryKeyword, 'gi')) || []).length;
-  return primaryCount >= 4 && primaryCount <= 6;
-}
-
-function cleanGeminiPreambles(content: string): string {
-  // Remove common Gemini preambles
-  const preamblePatterns = [
-    /^Here's an? .*?:\n\n/i,
-    /^I'll .*?:\n\n/i,
-    /^Okay, .*?:\n\n/i,
-    /^Based on .*?:\n\n/i,
-    /^Here's a draft.*?:\n\n/i,
-    /^.*?based on your specifications:?\n\n/i,
-    /^.*?SEO-optimized article.*?:\n\n/i
-  ];
-
-  let cleanedContent = content.trim();
-  for (const pattern of preamblePatterns) {
-    cleanedContent = cleanedContent.replace(pattern, '');
-  }
-
-  // Also remove if the first line doesn't look like article content
-  const firstLine = cleanedContent.split('\n')[0];
-  if (
-    firstLine.toLowerCase().includes('here') ||
-    firstLine.toLowerCase().includes("i'll") ||
-    firstLine.toLowerCase().includes('based on')
-  ) {
-    cleanedContent = cleanedContent.substring(cleanedContent.indexOf('\n') + 1).trim();
-  }
-
-  return cleanedContent;
-}
-
 // Mock article generation for development
 async function mockGenerateArticle(description: string, primaryKeyword: string, selectedHeadline: string, selectedKeywords: string[]) {
   // Simulate API delay
@@ -144,7 +109,7 @@ By focusing on **${selectedKeywords[0]}** and implementing the strategies outlin
 Remember that **${primaryKeyword}** is not a one-time effort but an ongoing process that requires dedication, resources, and patience. The businesses that understand this fundamental truth and commit to long-term excellence will ultimately reap the greatest rewards in today's dynamic marketplace.`;
 
   // Clean the content by removing any H1 markdown from the beginning
-  let cleanedContent = cleanGeminiPreambles(content.trim());
+  let cleanedContent = content.trim();
   
   // If content starts with H1 markdown, remove the entire first line
   if (cleanedContent.startsWith('# ')) {
@@ -158,14 +123,12 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   }
 
   const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
-  const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
   return {
     content: cleanedContent,
     title: selectedHeadline,
     structureValid: true,
     missingSections: [],
-    keywordDensityValid,
     ...metrics
   };
 }
@@ -284,32 +247,9 @@ CREATIVE CONTEXT:
 
 STRUCTURE GUIDANCE FROM CREATIVE:
 ${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
-
-MANDATORY STRUCTURE:
-
-H2 SUBHEADING REQUIREMENTS:
-For each required section, create engaging H2 headings that:
-- Include the primary keyword naturally (in at least 2 headings)
-- Reflect the specific benefit or problem addressed in that section
-- Avoid generic phrases like 'Your Guide to' or 'Overview'
-- Use action words and specific outcomes
-
-Templates based on section type:
-- Year ranges: '[Primary Keyword] [Year]: [Specific Problem/Benefit]'
-- Product types: '[Primary Keyword] for [Type]: [Unique Value Proposition]'
-- Numbered items: '[Number]. [Specific Action/Check] for [Primary Keyword]'
-
-Example transformations:
-BAD: 'Hatchbacks: Your Guide to Affordable Cars'
-GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
 ` : ''}
 
       SEO SPECIFICATIONS:
-      - CRITICAL SEO RULE: The primary keyword '${primaryKeyword}' should appear naturally within the first 3-5 words of:
-        • The opening sentence of the article
-        • At least 2 out of your H2 section headings
-        • The first sentence after each H2 heading
-        Do NOT force it as the very first word if it makes the sentence awkward.
       - Include 3-4 H2 sections (## format)
       - Keyword density: 0.5-0.8% maximum
       - Bold the primary keyword and 4-5 other important keywords using **text**
@@ -318,17 +258,7 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
       - Active voice
       - Include current statistics and insights
       - NEVER mention "SEO", "optimization", or "keywords" in the content
-
-      KEYWORD DISTRIBUTION RULES:
-      - Primary keyword '${primaryKeyword}': Use exactly 4-6 times throughout the article
-        • Once in opening paragraph
-        • Once in 2-3 H2 headings (naturally)
-        • 2-3 times in body paragraphs
-      - Secondary keywords: Use each 1-2 times maximum
-      - NEVER use the same keyword phrase in consecutive sentences
-      - Prioritize natural language flow over keyword insertion
-      - Use pronouns and synonyms to avoid repetition
-
+      
       STRUCTURE:
       1. Compelling introduction with primary keyword
       2. 3-4 main sections with H2 headings
@@ -405,7 +335,7 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
     }
 
     // Clean the content by removing any H1 markdown from the beginning
-    let cleanedContent = cleanGeminiPreambles(content.trim());
+    let cleanedContent = content.trim();
     
     // If content starts with H1 markdown, remove the entire first line
     if (cleanedContent.startsWith('# ')) {
@@ -436,14 +366,12 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
     }
 
     const metrics = calculateArticleMetrics(cleanedContent, primaryKeyword, selectedKeywords);
-    const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
 
     return {
       content: cleanedContent,
       title: selectedHeadline,
       structureValid: validation?.valid ?? true,
       missingSections: validation?.missing ?? [],
-      keywordDensityValid,
       ...metrics
     };
 

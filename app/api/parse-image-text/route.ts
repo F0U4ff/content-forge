@@ -122,14 +122,6 @@ function generateDescriptionFromParsedData(data: ParsedCreativeData): string {
     description += `Appeal to ${data.emotionalTriggers.join(' and ')} to engage readers.`;
   }
 
-  if (
-    data.productDetails.includes('specifically') === false &&
-    data.extractedText.every(text => !text.toLowerCase().includes('bolero'))
-  ) {
-    // Remove specific brand references from description
-    description = description.replace(/Mahindra Bolero|Bolero/gi, data.businessVertical);
-  }
-
   return description.trim();
 }
 
@@ -151,22 +143,6 @@ CRITICAL SEGMENT PRESERVATION RULES:
  - Multiple product categories with separate CTAs = separate sections for EACH
  - If creative says 'X things to know' or 'X must-checks', create EXACTLY X numbered sections
  - If creative says 'models to avoid' or 'skip these', sections must name SPECIFIC models
-
-CRITICAL DISTINCTION - Reference Image vs Topic:
-- If the text/headlines are GENERIC (e.g., 'PICKUP TRUCK', 'SUV', 'SEDAN') 
-  but the image shows a SPECIFIC model/brand:
-  • Treat the specific model as a REFERENCE EXAMPLE only
-  • Focus on the GENERIC category mentioned in text
-  • DO NOT make the article brand-specific unless text explicitly mentions the brand
-  
-Example:
-- Text says: 'PICKUP TRUCK' with generic messaging
-- Image shows: Mahindra Bolero
-- Result: Article about pickup trucks in general, Bolero is just one example
-  
-In targetKeywords, use:
-- Primary: The GENERIC term from text (e.g., 'pickup truck')
-- Secondary: Can include the specific model as ONE option among others
 
 Follow this structured approach:
 
