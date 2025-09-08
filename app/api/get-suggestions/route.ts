@@ -279,13 +279,19 @@ ${additionalRequirements}
 export async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: string) {
   // This function will refine existing headlines based on a new keyword
   return headlines.map((headline) => {
-    if (headline.includes(":")) {
-      const refinedText = headline.split(":")[1].trim();
-      return `${newKeyword}: ${refinedText}`;
+    const trimmedHeadline = headline.trim();
+
+    // Only split when a colon exists in the headline
+    if (!trimmedHeadline.includes(':')) {
+      // If the headline already contains the new keyword, leave it unchanged
+      return trimmedHeadline.toLowerCase().includes(newKeyword.toLowerCase())
+        ? trimmedHeadline
+        : `${newKeyword}: ${trimmedHeadline}`;
     }
 
-    // Gracefully handle headlines without a colon by prepending the new keyword
-    return `${newKeyword}: ${headline.trim()}`;
+    const [, ...rest] = trimmedHeadline.split(':');
+    const refinedText = rest.join(':').trim();
+    return `${newKeyword}: ${refinedText}`;
   });
 }
 
