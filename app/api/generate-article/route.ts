@@ -355,7 +355,6 @@ MANDATORY STRUCTURE:
 
 H2 SUBHEADING REQUIREMENTS:
 For each required section, create engaging H2 headings that:
-- Include the primary keyword naturally (in at least 2 headings)
 - Reflect the specific benefit or problem addressed in that section
 - Avoid generic phrases like 'Your Guide to' or 'Overview'
 - Use action words and specific outcomes
@@ -370,30 +369,20 @@ BAD: 'Hatchbacks: Your Guide to Affordable Cars'
 GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
 ` : ''}
 
-      SEO SPECIFICATIONS:
-      - CRITICAL SEO RULE: The primary keyword '${primaryKeyword}' should appear naturally within the first 3-5 words of:
-        • The opening sentence of the article
-        • At least 2 out of your H2 section headings
-        • The first sentence after each H2 heading
-        Do NOT force it as the very first word if it makes the sentence awkward.
-      - Include 3-4 H2 sections (## format)
-      - Keyword density: 0.5-0.8% maximum
-      - Bold the primary keyword and 4-5 other important keywords using **text**
-      - Natural, conversational tone
-      - Grade 8 reading level
-      - Active voice
-      - Include current statistics and insights
-      - NEVER mention "SEO", "optimization", or "keywords" in the content
-
-      KEYWORD DISTRIBUTION RULES:
-      - Primary keyword '${primaryKeyword}': Use exactly 4-6 times throughout the article
-        • Once in opening paragraph
-        • Once in 2-3 H2 headings (naturally)
+      SEO GUIDELINES:
+      - Use primary keyword '${primaryKeyword}' exactly 4-6 times throughout the article
+        • Once in the opening paragraph
+        • Naturally within 2-3 H2 headings, prioritizing readability (keyword doesn't need to be at the start)
         • 2-3 times in body paragraphs
       - Secondary keywords: Use each 1-2 times maximum
-      - NEVER use the same keyword phrase in consecutive sentences
-      - Prioritize natural language flow over keyword insertion
-      - Use pronouns and synonyms to avoid repetition
+      - Avoid using the same keyword phrase in consecutive sentences
+      - Keyword density: 0.5-0.8% maximum
+      - Bold the primary keyword and 4-5 other important keywords using **text**
+      - Include 3-4 H2 sections (## format)
+      - Natural, conversational tone at a Grade 8 reading level using active voice
+      - Include current statistics and insights
+      - Never mention "SEO", "optimization", or "keywords" in the content
+      - Prioritize natural language flow and use pronouns and synonyms to avoid repetition
 
       STRUCTURE:
       1. Compelling introduction with primary keyword
