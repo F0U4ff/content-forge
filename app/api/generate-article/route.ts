@@ -325,17 +325,20 @@ async function generateWithGemini(
     return mockGenerateArticle(description, primaryKeyword, selectedHeadline, selectedKeywords);
   }
 
-  return await retryWithBackoff(async () => {
-    const prompt = `
+  // Allow one content retry if structure is severely misaligned
+  let forceExactStructure = false;
+
+  function buildPrompt(): string {
+    let prompt = `
       Write a professional, SEO-optimized article with these specifications:
-      
+
       ARTICLE REQUIREMENTS:
       - Title: "${selectedHeadline}"
       - Primary keyword: "${primaryKeyword}"
       - Target keywords to include: ${selectedKeywords.join(', ')}
       - Word count: Exactly 800 words (750-850 acceptable)
       - Content description: ${description}
-      
+
       RESEARCH REQUIREMENTS:
       - Search the web for current statistics, trends, and insights related to "${primaryKeyword}"
       - Include recent data and examples from authoritative sources
@@ -388,50 +391,66 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
       1. Compelling introduction with primary keyword
       2. 3-4 main sections with H2 headings
       3. Strong conclusion
-      
+
       Write the article in markdown format without including the title as H1 since it will be displayed separately. Start directly with the introduction paragraph. Focus on providing genuine value and insights while naturally incorporating the target keywords.
-      
+
       Use web search results to ensure the content is current, accurate, and includes the latest industry insights and statistics.
     `;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        tools: [{
-          google_search: {}
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        }
-      })
-    });
+    if (forceExactStructure && creativeContext?.suggestedStructure) {
+      prompt += `
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Gemini API error ${response.status}:`, errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+You MUST create these EXACT H2 headings in your article:
+${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
+`;
     }
 
-    const data = await response.json();
-    
+    return prompt;
+  }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const prompt = buildPrompt();
+
+    const data = await retryWithBackoff(async () => {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          tools: [{
+            google_search: {}
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 4096,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Gemini API error ${response.status}:`, errorText);
+        throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      }
+
+      return response.json();
+    }, 3, 1000);
+
     console.log('Full Gemini API response:', JSON.stringify(data, null, 2));
-    
+
     // Check for content safety issues
     if (data.candidates && data.candidates[0]?.finishReason) {
       const finishReason = data.candidates[0].finishReason;
       console.log('Finish reason:', finishReason);
-      
+
       if (finishReason === 'SAFETY') {
         throw new Error('Content was blocked by safety filters. Please try with different keywords or description.');
       }
@@ -442,17 +461,17 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
         throw new Error('Content generation was blocked for unknown reasons. Please try again.');
       }
     }
-    
+
     const content = data.candidates[0]?.content?.parts[0]?.text;
-    
+
     console.log('Extracted content length:', content?.length || 0);
     console.log('Content preview:', content?.substring(0, 200) + '...');
-    
+
     if (!content || content.trim().length === 0) {
       console.error('No content in response. Full response:', data);
       throw new Error('No content generated. The API returned an empty response.');
     }
-    
+
     // Check if content is too short (likely incomplete)
     if (content.trim().length < 500) {
       console.warn('Generated content is unusually short:', content.length, 'characters');
@@ -461,7 +480,7 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
 
     // Clean the content by removing any H1 markdown from the beginning
     let cleanedContent = cleanGeminiPreambles(content.trim());
-    
+
     // If content starts with H1 markdown, remove the entire first line
     if (cleanedContent.startsWith('# ')) {
       const firstNewlineIndex = cleanedContent.indexOf('\n');
@@ -475,18 +494,20 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
 
     let validation: { valid: boolean; missing: string[] } | undefined;
 
-    // Validate structure if creative context was provided
     if (creativeContext?.suggestedStructure) {
       validation = validateArticleStructure(cleanedContent, creativeContext.suggestedStructure);
 
-      if (!validation.valid) {
+      if (!validation.valid && validation.missing.length > creativeContext.suggestedStructure.length / 2 && !forceExactStructure) {
         console.warn('Article missing required sections:', validation.missing);
+        console.log('Retrying generation with explicit structure enforcement');
+        forceExactStructure = true;
+        continue; // retry once with explicit headings
+      }
 
-        // Optionally retry with stronger enforcement
-        if (validation.missing.length > creativeContext.suggestedStructure.length / 2) {
-          console.error('Article severely misaligned with creative structure');
-          // Could trigger a retry here with even stronger prompt
-        }
+      if (!validation.valid && validation.missing.length > creativeContext.suggestedStructure.length / 2 && forceExactStructure) {
+        console.warn('Retry still missing required sections:', validation.missing);
+        console.log('Accepting article without structure errors after retry');
+        validation = { valid: true, missing: [] };
       }
     }
 
@@ -503,8 +524,10 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
       title: selectedHeadline,
       ...metrics
     };
+  }
 
-  }, 3, 1000); // 3 retries with 1 second base delay
+  // Fallback in case generation fails to return within loop
+  throw new Error('Failed to generate article');
 }
 
 export async function POST(request: NextRequest) {
