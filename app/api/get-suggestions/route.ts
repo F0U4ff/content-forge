@@ -29,14 +29,16 @@ async function mockGeminiSuggestionsWithContext(
 
   if (creativeContext?.suggestedStructure) {
     creativeContext.suggestedStructure.forEach(section => {
-      const matches = [...section.title.matchAll(yearRangePattern)];
-      if (matches.length) {
-        matches.forEach(m => {
-          const start = m[1];
-          const end = m[2].length === 2 ? start.slice(0, 2) + m[2] : m[2];
-          yearRanges.push(`${start}-${end}`);
-        });
-      } else {
+      yearRangePattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      let foundYear = false;
+      while ((match = yearRangePattern.exec(section.title)) !== null) {
+        foundYear = true;
+        const start = match[1];
+        const end = match[2].length === 2 ? start.slice(0, 2) + match[2] : match[2];
+        yearRanges.push(`${start}-${end}`);
+      }
+      if (!foundYear) {
         const segment = section.title
           .replace(yearRangePattern, '')
           .replace(/models?/i, '')
@@ -119,14 +121,16 @@ async function getGeminiSuggestionsWithContext(
 
     if (creativeContext) {
       creativeContext.suggestedStructure?.forEach(section => {
-        const matches = [...section.title.matchAll(yearRangePattern)];
-        if (matches.length) {
-          matches.forEach(m => {
-            const start = m[1];
-            const end = m[2].length === 2 ? start.slice(0, 2) + m[2] : m[2];
-            yearRanges.push(`${start}-${end}`);
-          });
-        } else {
+        yearRangePattern.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        let foundYear = false;
+        while ((match = yearRangePattern.exec(section.title)) !== null) {
+          foundYear = true;
+          const start = match[1];
+          const end = match[2].length === 2 ? start.slice(0, 2) + match[2] : match[2];
+          yearRanges.push(`${start}-${end}`);
+        }
+        if (!foundYear) {
           const segment = section.title
             .replace(yearRangePattern, '')
             .replace(/models?/i, '')
