@@ -52,11 +52,12 @@ async function mockGeminiSuggestionsWithContext(
     keywords.push(...creativeContext.keyThemes);
   }
 
-  keywords = Array.from(new Set(keywords)).slice(0, 15);
+  const uniqueHeadlines = Array.from(new Set(headlines));
+  const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 15);
 
   return {
-    headlines,
-    keywords
+    headlines: uniqueHeadlines,
+    keywords: uniqueKeywords
   };
 }
 
@@ -218,12 +219,18 @@ Examples based on this creative:
       return mockGeminiSuggestionsWithContext(description, primaryKeyword, relevantKeywords, creativeContext);
     }
 
-    if (!parsed.headlines || !Array.isArray(parsed.headlines) || 
+    if (!parsed.headlines || !Array.isArray(parsed.headlines) ||
         !parsed.keywords || !Array.isArray(parsed.keywords)) {
       throw new Error('Invalid JSON structure in response');
     }
 
-    return parsed;
+    const uniqueHeadlines = Array.from(new Set(parsed.headlines));
+    const uniqueKeywords = Array.from(new Set(parsed.keywords)).slice(0, 15);
+
+    return {
+      headlines: uniqueHeadlines,
+      keywords: uniqueKeywords
+    };
     
   } catch (error) {
     console.error('Gemini API error:', error);

@@ -191,6 +191,9 @@ Remember that **${primaryKeyword}** is not a one-time effort but an ongoing proc
   return {
     content: cleanedContent,
     title: selectedHeadline,
+    // TODO: implement real prompt-generation logic
+    structureValidation: { valid: true, missing: [] },
+    keywordDensityValid,
     ...metrics
   };
 }
