@@ -23,11 +23,35 @@ async function mockGeminiSuggestionsWithContext(
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   let headlines = [];
+  const yearRangePattern = /((?:19|20)\d{2})\s*-\s*(\d{2}|\d{4})/g;
+  const yearRanges: string[] = [];
+  const productSegments: string[] = [];
+
+  if (creativeContext?.suggestedStructure) {
+    creativeContext.suggestedStructure.forEach(section => {
+      const matches = [...section.title.matchAll(yearRangePattern)];
+      if (matches.length) {
+        matches.forEach(m => {
+          const start = m[1];
+          const end = m[2].length === 2 ? start.slice(0, 2) + m[2] : m[2];
+          yearRanges.push(`${start}-${end}`);
+        });
+      } else {
+        const segment = section.title
+          .replace(yearRangePattern, '')
+          .replace(/models?/i, '')
+          .trim();
+        if (segment) productSegments.push(segment);
+      }
+    });
+  }
+
+  const uniqueYearRanges = Array.from(new Set(yearRanges));
+  const uniqueSegments = Array.from(new Set(productSegments));
+  const urgentHook = creativeContext?.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
-    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook =>
-      `${primaryKeyword}: ${hook}`
-    );
+    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook => `${primaryKeyword}: ${hook}`);
   } else {
     headlines = [
       `${primaryKeyword}: The Ultimate Guide to Getting the Best Deal`,
@@ -36,6 +60,20 @@ async function mockGeminiSuggestionsWithContext(
       `${primaryKeyword}: Complete Buyer's Guide`,
       `${primaryKeyword}: Everything You Need to Know`
     ];
+  }
+
+  if (uniqueYearRanges.length >= 3) {
+    for (let i = 0; i < 3 && i < headlines.length; i++) {
+      headlines[i] = `${headlines[i]} (${uniqueYearRanges[i]} models)`;
+    }
+  } else if (uniqueSegments.length >= 3) {
+    for (let i = 0; i < 3 && i < headlines.length; i++) {
+      headlines[i] = `${headlines[i]} (${uniqueSegments[i]})`;
+    }
+  }
+
+  if (urgentHook) {
+    headlines[headlines.length - 1] = `${primaryKeyword}: ${urgentHook}`;
   }
 
   let keywords = [...relevantKeywords.slice(0, 8)];
@@ -74,6 +112,33 @@ async function getGeminiSuggestionsWithContext(
   }
 
   try {
+    const yearRangePattern = /((?:19|20)\d{2})\s*-\s*(\d{2}|\d{4})/g;
+    let yearRanges: string[] = [];
+    let productSegments: string[] = [];
+    let urgentHook: string | undefined;
+
+    if (creativeContext) {
+      creativeContext.suggestedStructure?.forEach(section => {
+        const matches = [...section.title.matchAll(yearRangePattern)];
+        if (matches.length) {
+          matches.forEach(m => {
+            const start = m[1];
+            const end = m[2].length === 2 ? start.slice(0, 2) + m[2] : m[2];
+            yearRanges.push(`${start}-${end}`);
+          });
+        } else {
+          const segment = section.title
+            .replace(yearRangePattern, '')
+            .replace(/models?/i, '')
+            .trim();
+          if (segment) productSegments.push(segment);
+        }
+      });
+      yearRanges = Array.from(new Set(yearRanges));
+      productSegments = Array.from(new Set(productSegments));
+      urgentHook = creativeContext.marketingHooks?.find(h => /don't|avoid|never|mistake|warning|urgent/i.test(h));
+    }
+
     // Before building the prompt, add this context section:
     let contextSection = '';
     if (creativeContext) {
@@ -90,6 +155,21 @@ async function getGeminiSuggestionsWithContext(
     ${creativeContext.suggestedStructure?.map(s => `- ${s.title}: ${s.content}`).join('\n') || 'No specific structure identified'}
     `;
     }
+
+    const additionalInstructions: string[] = [
+      'If the creative shows 3 year ranges, at least 3 headlines must mention those specific years. If the creative has urgent warnings, reflect that tone.',
+      "Make the headlines specific to what's actually in the creative, not generic."
+    ];
+    if (yearRanges.length) {
+      additionalInstructions.push(`Year ranges detected: ${yearRanges.join(', ')}`);
+    }
+    if (productSegments.length) {
+      additionalInstructions.push(`Product segments detected: ${productSegments.join(', ')}`);
+    }
+    if (urgentHook) {
+      additionalInstructions.push(`Include at least one urgent headline using tone like: \"${urgentHook}\"`);
+    }
+    const additionalRequirements = additionalInstructions.map(r => `      - ${r}`).join('\n');
 
     const headlineFormula = creativeContext?.suggestedStructure ? `
 HEADLINE FORMULA:
@@ -121,6 +201,7 @@ Examples based on this creative:
       4. Match the emotional tone and marketing approach identified
       5. Address the target audience's specific needs
       6. Incorporate the unique selling points when relevant
+${additionalRequirements}
 
       ${creativeContext?.marketingHooks ? `
       IMPORTANT: Base headlines on these specific marketing hooks from the creative:
