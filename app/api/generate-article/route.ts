@@ -326,9 +326,6 @@ async function generateWithGemini(
     return mockGenerateArticle(description, primaryKeyword, selectedHeadline, selectedKeywords);
   }
 
-  // Allow one content retry if structure is severely misaligned
-  let forceExactStructure = false;
-
   function buildPrompt(): string {
     let prompt = `
       Write a professional, SEO-optimized article with these specifications:
@@ -353,24 +350,17 @@ CREATIVE CONTEXT:
 - Article should appeal to: ${creativeContext.emotionalTriggers?.join(' and ')}
 
 STRUCTURE GUIDANCE FROM CREATIVE:
-${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\n')}
+${creativeContext.suggestedStructure?.map(s => `- ${s.title}`).join('\\n')}
 
-MANDATORY STRUCTURE:
+SUGGESTED STRUCTURE:
 
-H2 SUBHEADING REQUIREMENTS:
-For each required section, create engaging H2 headings that:
-- Reflect the specific benefit or problem addressed in that section
-- Avoid generic phrases like 'Your Guide to' or 'Overview'
-- Use action words and specific outcomes
-
-Templates based on section type:
-- Year ranges: '[Primary Keyword] [Year]: [Specific Problem/Benefit]'
-- Product types: '[Primary Keyword] for [Type]: [Unique Value Proposition]'
-- Numbered items: '[Number]. [Specific Action/Check] for [Primary Keyword]'
-
-Example transformations:
-BAD: 'Hatchbacks: Your Guide to Affordable Cars'
-GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
+H2 SUBHEADING GUIDELINES:
+- Create natural headings that cover the suggested topics
+- Include relevant years/products when it makes sense
+- Don't force the primary keyword into every heading
+- Write headings that tell a story, not fill a template
+- Good example: "What Changed in 2019-2021 Models"
+- Bad example: "Pickup Truck 2019-21: Comprehensive Overview"
 ` : ''}
 
       SEO GUIDELINES:
@@ -397,18 +387,10 @@ GOOD: 'Used Car EMI for Hatchbacks: Maximum Savings, Minimum Space'
       Use web search results to ensure the content is current, accurate, and includes the latest industry insights and statistics.
     `;
 
-    if (forceExactStructure && creativeContext?.suggestedStructure) {
-      prompt += `
-
-You MUST create these EXACT H2 headings in your article:
-${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
-`;
-    }
 
     return prompt;
   }
 
-  for (let attempt = 0; attempt < 2; attempt++) {
     const prompt = buildPrompt();
 
     const data = await retryWithBackoff(async () => {
@@ -496,19 +478,6 @@ ${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
 
     if (creativeContext?.suggestedStructure) {
       validation = validateArticleStructure(cleanedContent, creativeContext.suggestedStructure);
-
-      if (!validation.valid && validation.missing.length > creativeContext.suggestedStructure.length / 2 && !forceExactStructure) {
-        console.warn('Article missing required sections:', validation.missing);
-        console.log('Retrying generation with explicit structure enforcement');
-        forceExactStructure = true;
-        continue; // retry once with explicit headings
-      }
-
-      if (!validation.valid && validation.missing.length > creativeContext.suggestedStructure.length / 2 && forceExactStructure) {
-        console.warn('Retry still missing required sections:', validation.missing);
-        console.log('Accepting article without structure errors after retry');
-        validation = { valid: true, missing: [] };
-      }
     }
 
     const keywordDensityValid = validateKeywordDensity(cleanedContent, primaryKeyword);
@@ -526,10 +495,7 @@ ${creativeContext.suggestedStructure.map(s => `- ${s.title}`).join('\n')}
       missingSections: validation?.missing ?? [],
       ...metrics
     };
-  }
 
-  // Fallback in case generation fails to return within loop
-  throw new Error('Failed to generate article');
 }
 
 export async function POST(request: NextRequest) {
