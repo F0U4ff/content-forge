@@ -229,6 +229,15 @@ Structure your response as follows:
 - Secondary: [Supporting keywords]
 - Long-tail: [Specific search phrases]
 
+PRIMARY KEYWORD SELECTION RULES:
+- Choose the SIMPLEST, MOST GENERAL term from the creative (1-2 words maximum)
+- Examples:
+  * If creative shows "PICKUP TRUCK" → primary keyword is "pickup truck"
+  * If creative shows "SECOND HAND CAR EMI" → primary keyword is "used car financing" or "used car EMI"
+  * If creative shows "SUVs TO AVOID 2025" → primary keyword is "SUVs to avoid"
+- Additional context goes in secondary keywords
+- NEVER use 3+ word phrases as primary keyword
+
 **CONTENT TONE:**
 [Describe the appropriate tone based on the creative's messaging]
 
