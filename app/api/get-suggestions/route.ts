@@ -35,7 +35,9 @@ async function mockGeminiSuggestionsWithContext(
   );
 
   if (creativeContext?.marketingHooks && creativeContext.marketingHooks.length > 0) {
-    headlines = creativeContext.marketingHooks.slice(0, 5).map(hook => `${primaryKeyword}: ${hook}`);
+    headlines = creativeContext.marketingHooks
+      .slice(0, 5)
+      .map(hook => `${hook} ${primaryKeyword}`);
   } else {
     headlines = [
       `The Ultimate ${primaryKeyword} Guide to Getting the Best Deal`,
@@ -57,7 +59,7 @@ async function mockGeminiSuggestionsWithContext(
   }
 
   if (urgentHook) {
-    headlines[headlines.length - 1] = `${primaryKeyword}: ${urgentHook}`;
+    headlines[headlines.length - 1] = `${urgentHook} ${primaryKeyword}`;
   }
 
   let keywords = [...relevantKeywords.slice(0, 8)];
@@ -129,14 +131,14 @@ async function getGeminiSuggestionsWithContext(
       'If the creative shows 3 year ranges, at least 3 headlines must mention those specific years. If the creative has urgent warnings, reflect that tone.',
       "Make the headlines specific to what's actually in the creative, not generic."
     ];
-    if (yearRanges.length) {
-      additionalInstructions.push(`Year ranges detected: ${yearRanges.join(', ')}`);
-    }
     if (productSegments.length) {
       additionalInstructions.push(`Product segments detected: ${productSegments.join(', ')}`);
     }
     if (urgentHook) {
-      additionalInstructions.push(`Include at least one urgent headline using tone like: \"${urgentHook}\"`);
+      additionalInstructions.push(`The creative has urgent messaging: '${urgentHook}' - reflect this in headlines`);
+    }
+    if (yearRanges.length > 0) {
+      additionalInstructions.push(`The creative shows these year ranges: ${yearRanges.join(', ')} - include in headlines`);
     }
     const additionalRequirements = additionalInstructions.map(r => `      - ${r}`).join('\n');
 
@@ -164,7 +166,7 @@ Examples based on this creative:
       ${headlineFormula}
 
       Generate 5 short, punchy, creative-specific headlines that:
-      1. ALL must start with exactly: "${primaryKeyword}:"
+      1. Include the primary keyword naturally within the first 5 words
       2. Follow the headline formula above
       3. Directly reflect the content and themes from the creative
       4. Match the emotional tone and marketing approach identified
@@ -183,7 +185,7 @@ ${additionalRequirements}
       ` : ''}
 
       Search the web for current trends and insights, then provide:
-      1. Five compelling article headlines - CRITICAL: ALL headlines MUST start with the exact primary keyword "${primaryKeyword}"
+      1. Five compelling article headlines - CRITICAL: Include the primary keyword within the first 5 words of each headline
          - One benefit-focused headline
          - One problem-solving headline
          - One curiosity-driven headline
@@ -192,20 +194,42 @@ ${additionalRequirements}
       2. 10-15 SEO keyword suggestions related to the topic
 
       HEADLINE REQUIREMENTS:
-      - Every headline MUST begin with exactly: "${primaryKeyword}"
-      - Follow with a colon (:) then the rest of the headline
-      - Keep each headline concise and punchy (maximum 12 words)
-      - Make them compelling and click-worthy
-      - Ensure variety in approach and angle
+      - Include the primary keyword naturally within the first 5 words
+      - NO COLONS REQUIRED - write natural, compelling headlines
+      - CRITICAL: Headlines MUST reflect the creative's actual context:
+        * If creative says "Don't make this mistake" → use warning/mistake angle
+        * If creative says "Things to know" → use educational/guide angle
+        * If creative shows year ranges → include those specific years
+        * If creative shows product options → reference those options
+
+      CONTEXT MATCHING RULES:
+      - Extract the emotional hook from the creative and use it
+      - If creative has 3 year ranges (2015-18, 2019-21, 2022-25), at least 2 headlines must mention these ranges
+      - If creative warns about mistakes, use words like "avoid", "don't", "mistakes", "warning"
+      - If creative promises information, use words like "guide", "learn", "discover", "revealed"
+
+      GOOD EXAMPLES (for pickup truck creative with "don't make this mistake" and year ranges):
+      - "Don't Make These Pickup Truck Mistakes (2015-2025 Models)"
+      - "Avoid Costly Pickup Truck Errors When Shopping 2019-2021 Models"
+      - "Critical Pickup Truck Warning for 2022-2025 Buyers"
+      - "What Every Pickup Truck Buyer Must Know (Complete 2015-2025 Guide)"
+
+      BAD EXAMPLES:
+      - "pickup truck: The Ultimate Guide" (ignores creative context)
+      - "Best Pickup Trucks to Buy" (too generic, misses warning tone)
+      - "Pickup Truck Buying Tips" (doesn't reflect urgency or year ranges)
+
+      - Write headlines that someone who saw the creative would expect to read
+      - Keep each headline under 70 characters
 
       Respond with ONLY this JSON structure (no markdown, no explanations, just pure JSON):
       {
         "headlines": [
-          "${primaryKeyword}: headline1 based on ${description}",
-          "${primaryKeyword}: headline2 inspired by ${description}",
-          "${primaryKeyword}: headline3 related to ${description}",
-          "${primaryKeyword}: headline4 reflecting ${description}",
-          "${primaryKeyword}: headline5 focusing on ${description}"
+          "${primaryKeyword} headline1 based on ${description}",
+          "${primaryKeyword} headline2 inspired by ${description}",
+          "${primaryKeyword} headline3 related to ${description}",
+          "${primaryKeyword} headline4 reflecting ${description}",
+          "${primaryKeyword} headline5 focusing on ${description}"
         ],
         "keywords": [
           "keyword1 from ${description}",
@@ -282,20 +306,16 @@ ${additionalRequirements}
 
 export async function refineHeadlinesWithNewKeyword(headlines: string[], newKeyword: string) {
   // This function will refine existing headlines based on a new keyword
-  return headlines.map((headline) => {
+  return headlines.map(headline => {
     const trimmedHeadline = headline.trim();
 
-    // Only split when a colon exists in the headline
-    if (!trimmedHeadline.includes(':')) {
-      // If the headline already contains the new keyword, leave it unchanged
-      return trimmedHeadline.toLowerCase().includes(newKeyword.toLowerCase())
-        ? trimmedHeadline
-        : `${newKeyword}: ${trimmedHeadline}`;
+    const words = trimmedHeadline.split(/\s+/);
+    if (words.slice(0, 5).some(w => w.toLowerCase() === newKeyword.toLowerCase())) {
+      return trimmedHeadline;
     }
 
-    const [, ...rest] = trimmedHeadline.split(':');
-    const refinedText = rest.join(':').trim();
-    return `${newKeyword}: ${refinedText}`;
+    const withoutPrefix = trimmedHeadline.replace(/^.*?:\s*/, '');
+    return `${newKeyword} ${withoutPrefix}`.trim();
   });
 }
 
